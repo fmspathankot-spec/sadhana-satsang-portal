@@ -28,11 +28,11 @@ services:
     container_name: satsang_app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"  # Changed to 3001 to avoid conflicts
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/satsang_db
       NODE_ENV: production
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
     depends_on:
       postgres:
         condition: service_healthy
