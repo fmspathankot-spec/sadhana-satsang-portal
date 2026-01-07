@@ -31,6 +31,23 @@ export default function HomePage() {
             </div>
           </a>
 
+          {/* View All Sadhaks Card */}
+          <a
+            href="/sadhaks"
+            className="group bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-1"
+          >
+            <div className="text-5xl mb-4">👥</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              साधकों की सूची
+            </h3>
+            <p className="text-gray-600 mb-4">
+              सभी साधकों को देखें, संपादित करें और प्रबंधित करें
+            </p>
+            <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
+              देखें →
+            </div>
+          </a>
+
           {/* Reports Card */}
           <a
             href="/reports"
@@ -44,7 +61,7 @@ export default function HomePage() {
               PDF और Excel में रिपोर्ट डाउनलोड करें
             </p>
             <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
-              देखें →
+              डाउनलोड करें →
             </div>
           </a>
 
@@ -62,23 +79,6 @@ export default function HomePage() {
             </p>
             <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
               प्रबंधित करें →
-            </div>
-          </a>
-
-          {/* Events Card */}
-          <a
-            href="/events"
-            className="group bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all transform hover:-translate-y-1"
-          >
-            <div className="text-5xl mb-4">📅</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              सत्संग कार्यक्रम
-            </h3>
-            <p className="text-gray-600 mb-4">
-              आगामी सत्संग की योजना बनाएं
-            </p>
-            <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
-              योजना बनाएं →
             </div>
           </a>
         </div>
