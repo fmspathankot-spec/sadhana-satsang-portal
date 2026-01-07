@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,14 +9,14 @@ import { toast } from 'sonner';
 const sadhakSchema = z.object({
   placeId: z.number().min(1, 'स्थान चुनना आवश्यक है'),
   name: z.string().min(2, 'नाम आवश्यक है'),
-  age: z.number().optional().nullable(),
-  lastHaridwarYear: z.number().optional().nullable(),
+  age: z.coerce.number().optional().nullable(),
+  lastHaridwarYear: z.coerce.number().optional().nullable(),
   otherLocation: z.string().optional().nullable(),
-  dikshitYear: z.number().optional().nullable(),
+  dikshitYear: z.coerce.number().optional().nullable(),
   dikshitBy: z.string().default('डॉ. श्री विश्वामित्र जी महाराज'),
   isFirstEntry: z.boolean().default(false),
   relationship: z.string().optional().nullable(),
-  serialNumber: z.number().optional().nullable(),
+  serialNumber: z.coerce.number().optional().nullable(),
 });
 
 type SadhakFormData = z.infer<typeof sadhakSchema>;
@@ -28,6 +28,8 @@ interface SadhakFormProps {
 }
 
 export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -46,25 +48,56 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
   const isFirstEntry = watch('isFirstEntry');
 
   const onSubmit = async (data: SadhakFormData) => {
+    console.log('Form submitted with data:', data);
+    setIsLoading(true);
+
     try {
+      // Clean up data - convert empty strings to null
+      const cleanData = {
+        ...data,
+        age: data.age || null,
+        lastHaridwarYear: data.lastHaridwarYear || null,
+        otherLocation: data.otherLocation || null,
+        dikshitYear: data.dikshitYear || null,
+        relationship: data.relationship || null,
+        serialNumber: data.serialNumber || null,
+      };
+
+      console.log('Sending to API:', cleanData);
+
       const response = await fetch('/api/sadhaks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cleanData),
       });
 
-      if (!response.ok) throw new Error('Failed to create sadhak');
+      console.log('Response status:', response.status);
 
-      toast.success('साधक सफलतापूर्वक जोड़ा गया');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to create sadhak');
+      }
+
+      const result = await response.json();
+      console.log('Success:', result);
+
+      toast.success('साधक सफलतापूर्वक जोड़ा गया! ✅');
+      
       reset({
         placeId,
         dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
         isFirstEntry: false,
       });
+      
       onSuccess();
     } catch (error) {
-      toast.error('साधक जोड़ने में त्रुटि हुई');
-      console.error(error);
+      console.error('Submit error:', error);
+      toast.error(error instanceof Error ? error.message : 'साधक जोड़ने में त्रुटि हुई');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -78,7 +111,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
           </label>
           <input
             type="number"
-            {...register('serialNumber', { valueAsNumber: true })}
+            {...register('serialNumber')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             placeholder="1, 2, 3..."
           />
@@ -105,12 +138,18 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
           <label className="block text-sm font-medium text-gray-700 mb-2">
             संबंध
           </label>
-          <input
-            type="text"
+          <select
             {...register('relationship')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="पति, पत्नी, आदि"
-          />
+          >
+            <option value="">चुनें</option>
+            <option value="पति">पति</option>
+            <option value="पत्नी">पत्नी</option>
+            <option value="पुत्र">पुत्र</option>
+            <option value="पुत्री">पुत्री</option>
+            <option value="माता">माता</option>
+            <option value="पिता">पिता</option>
+          </select>
         </div>
 
         {/* Age */}
@@ -120,7 +159,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
           </label>
           <input
             type="number"
-            {...register('age', { valueAsNumber: true })}
+            {...register('age')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             placeholder="48"
           />
@@ -148,7 +187,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
             </label>
             <input
               type="number"
-              {...register('lastHaridwarYear', { valueAsNumber: true })}
+              {...register('lastHaridwarYear')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               placeholder="2025"
             />
@@ -175,7 +214,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
           </label>
           <input
             type="number"
-            {...register('dikshitYear', { valueAsNumber: true })}
+            {...register('dikshitYear')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             placeholder="1995"
           />
@@ -198,19 +237,32 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       <div className="flex gap-4">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isLoading}
           className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
         >
-          {isSubmitting ? 'जोड़ा जा रहा है...' : 'साधक जोड़ें'}
+          {isSubmitting || isLoading ? 'जोड़ा जा रहा है...' : 'साधक जोड़ें'}
         </button>
         <button
           type="button"
           onClick={() => reset()}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+          disabled={isSubmitting || isLoading}
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
         >
           रीसेट करें
         </button>
       </div>
+
+      {/* Debug Info (Remove in production) */}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 font-semibold mb-2">त्रुटियाँ:</p>
+          <ul className="text-red-600 text-sm space-y-1">
+            {Object.entries(errors).map(([key, error]) => (
+              <li key={key}>• {key}: {error.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </form>
   );
 }
