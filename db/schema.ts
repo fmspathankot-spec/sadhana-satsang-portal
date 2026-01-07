@@ -18,7 +18,7 @@ export const places = pgTable('places', {
   name: varchar('name', { length: 100 }).notNull(),
   contactPerson: varchar('contact_person', { length: 100 }),
   address: text('address'),
-  phone: varchar('phone', { length: 20 }),
+  phone: varchar('phone', { length: 50 }), // Increased from 20 to 50
   email: varchar('email', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -60,7 +60,7 @@ export const satsangEvents = pgTable('satsang_events', {
   location: varchar('location', { length: 100 }).notNull(),
   organizerName: varchar('organizer_name', { length: 100 }),
   organizerAddress: text('organizer_address'),
-  organizerPhone: varchar('organizer_phone', { length: 20 }),
+  organizerPhone: varchar('organizer_phone', { length: 50 }), // Increased from 20 to 50
   organizerEmail: varchar('organizer_email', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
