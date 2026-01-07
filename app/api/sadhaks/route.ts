@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { sadhaks, places } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const placeId = searchParams.get('placeId');
-    const eventId = searchParams.get('eventId');
+
+    console.log('GET /api/sadhaks - placeId:', placeId);
 
     let query = db
       .select({
@@ -32,12 +33,13 @@ export async function GET(request: Request) {
     }
 
     const result = await query;
+    console.log('Found sadhaks:', result.length);
 
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching sadhaks:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch sadhaks' },
+      { error: 'Failed to fetch sadhaks', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -46,17 +48,51 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+    console.log('POST /api/sadhaks - Received data:', body);
+
+    // Validate required fields
+    if (!body.placeId) {
+      return NextResponse.json(
+        { error: 'placeId is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.name || body.name.trim() === '') {
+      return NextResponse.json(
+        { error: 'name is required' },
+        { status: 400 }
+      );
+    }
+
+    // Insert into database
     const [sadhak] = await db
       .insert(sadhaks)
-      .values(body)
+      .values({
+        placeId: body.placeId,
+        serialNumber: body.serialNumber || null,
+        name: body.name,
+        age: body.age || null,
+        lastHaridwarYear: body.lastHaridwarYear || null,
+        otherLocation: body.otherLocation || null,
+        dikshitYear: body.dikshitYear || null,
+        dikshitBy: body.dikshitBy || 'डॉ. श्री विश्वामित्र जी महाराज',
+        isFirstEntry: body.isFirstEntry || false,
+        relationship: body.relationship || null,
+      })
       .returning();
+
+    console.log('Created sadhak:', sadhak);
 
     return NextResponse.json(sadhak, { status: 201 });
   } catch (error) {
     console.error('Error creating sadhak:', error);
     return NextResponse.json(
-      { error: 'Failed to create sadhak' },
+      { 
+        error: 'Failed to create sadhak', 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
