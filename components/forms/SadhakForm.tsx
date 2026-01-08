@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,7 +18,6 @@ const sadhakSchema = z.object({
   dikshitBy: z.string().default('डॉ. श्री विश्वामित्र जी महाराज'),
   isFirstEntry: z.boolean().default(false),
   relationship: z.string().optional().nullable(),
-  serialNumber: z.coerce.number().optional().nullable(),
 });
 
 type SadhakFormData = z.infer<typeof sadhakSchema>;
@@ -31,6 +30,7 @@ interface SadhakFormProps {
 
 export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [nextSerialNumber, setNextSerialNumber] = useState<number>(1);
 
   const {
     register,
@@ -50,6 +50,28 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
 
   const isFirstEntry = watch('isFirstEntry');
 
+  // Fetch next serial number on mount
+  useEffect(() => {
+    const fetchNextSerialNumber = async () => {
+      try {
+        const response = await fetch(`/api/sadhaks?placeId=${placeId}&eventId=${eventId}`);
+        const data = await response.json();
+        
+        // Find the highest serial number and add 1
+        const maxSerial = data.reduce((max: number, sadhak: any) => {
+          return sadhak.serialNumber > max ? sadhak.serialNumber : max;
+        }, 0);
+        
+        setNextSerialNumber(maxSerial + 1);
+      } catch (error) {
+        console.error('Error fetching serial number:', error);
+        setNextSerialNumber(1);
+      }
+    };
+
+    fetchNextSerialNumber();
+  }, [placeId, eventId]);
+
   const onSubmit = async (data: SadhakFormData) => {
     console.log('Form submitted with data:', data);
     setIsLoading(true);
@@ -57,13 +79,13 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
     try {
       const cleanData = {
         ...data,
+        serialNumber: nextSerialNumber, // Auto-assign serial number
         age: data.age || null,
         phone: data.phone || null,
         lastHaridwarYear: data.lastHaridwarYear || null,
         otherLocation: data.otherLocation || null,
         dikshitYear: data.dikshitYear || null,
         relationship: data.relationship || null,
-        serialNumber: data.serialNumber || null,
       };
 
       console.log('Sending to API:', cleanData);
@@ -87,7 +109,10 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       const result = await response.json();
       console.log('Success:', result);
 
-      toast.success('साधक सफलतापूर्वक जोड़ा गया! ✅');
+      toast.success(`साधक सफलतापूर्वक जोड़ा गया! क्रमांक: ${nextSerialNumber} ✅`);
+      
+      // Increment serial number for next entry
+      setNextSerialNumber(nextSerialNumber + 1);
       
       reset({
         placeId,
@@ -107,20 +132,18 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Serial Number */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            क्रमांक
-          </label>
-          <input
-            type="number"
-            {...register('serialNumber')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="1, 2, 3..."
-          />
+      {/* Auto Serial Number Display */}
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">अगला क्रमांक (Auto)</p>
+            <p className="text-2xl font-bold text-orange-600">{nextSerialNumber}</p>
+          </div>
+          <div className="text-4xl">🔢</div>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -251,35 +274,25 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       </div>
 
       {/* Submit Button */}
-      <div className="flex gap-4">
+      <div className="flex justify-end gap-4 pt-4">
         <button
           type="submit"
-          disabled={isSubmitting || isLoading}
-          className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+          disabled={isLoading || isSubmitting}
+          className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold shadow-md"
         >
-          {isSubmitting || isLoading ? 'जोड़ा जा रहा है...' : 'साधक जोड़ें'}
-        </button>
-        <button
-          type="button"
-          onClick={() => reset()}
-          disabled={isSubmitting || isLoading}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
-        >
-          रीसेट करें
+          {isLoading || isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              जोड़ा जा रहा है...
+            </span>
+          ) : (
+            '✅ साधक जोड़ें'
+          )}
         </button>
       </div>
-
-      {/* Debug Info */}
-      {Object.keys(errors).length > 0 && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800 font-semibold mb-2">त्रुटियाँ:</p>
-          <ul className="text-red-600 text-sm space-y-1">
-            {Object.entries(errors).map(([key, error]) => (
-              <li key={key}>• {key}: {error.message}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </form>
   );
 }
