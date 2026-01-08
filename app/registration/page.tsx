@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, Plus } from 'lucide-react';
+import { Calendar, MapPin, Plus, ChevronRight, Check } from 'lucide-react';
 import SadhakForm from '@/components/forms/SadhakForm';
 import { Toaster } from 'sonner';
 
@@ -11,6 +11,7 @@ interface Event {
   startDate: string;
   endDate: string;
   location: string;
+  isActive: boolean;
 }
 
 interface Place {
@@ -24,6 +25,7 @@ interface Sadhak {
   id: number;
   serialNumber: number | null;
   name: string;
+  phone: string | null;
   age: number | null;
   lastHaridwarYear: number | null;
   otherLocation: string | null;
@@ -39,6 +41,7 @@ export default function EventRegistrationPage() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [sadhaks, setSadhaks] = useState<Sadhak[]>([]);
   
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -50,21 +53,20 @@ export default function EventRegistrationPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedPlace) {
+    if (selectedPlace && selectedEvent) {
       fetchSadhaks();
     }
-  }, [selectedPlace]);
+  }, [selectedPlace, selectedEvent]);
 
   const fetchEvents = async () => {
     try {
       const response = await fetch('/api/events');
       const data = await response.json();
-      setEvents(data);
-      if (data.length > 0) {
-        setSelectedEvent(data[0].id);
-      }
+      setEvents(data.filter((e: Event) => e.isActive));
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching events:', error);
+      setLoading(false);
     }
   };
 
@@ -73,10 +75,8 @@ export default function EventRegistrationPage() {
       const response = await fetch('/api/places');
       const data = await response.json();
       setPlaces(data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching places:', error);
-      setLoading(false);
     }
   };
 
@@ -84,7 +84,7 @@ export default function EventRegistrationPage() {
     if (!selectedPlace) return;
     
     try {
-      const response = await fetch(`/api/sadhaks?placeId=${selectedPlace}`);
+      const response = await fetch(`/api/sadhaks?placeId=${selectedPlace}&eventId=${selectedEvent}`);
       const data = await response.json();
       setSadhaks(data);
     } catch (error) {
@@ -104,6 +104,32 @@ export default function EventRegistrationPage() {
     });
   };
 
+  const handleEventSelect = (eventId: number) => {
+    setSelectedEvent(eventId);
+    setCurrentStep(2);
+    setSelectedPlace(null);
+    setShowForm(false);
+  };
+
+  const handlePlaceSelect = (placeId: number) => {
+    setSelectedPlace(placeId);
+    setCurrentStep(3);
+    setShowForm(false);
+  };
+
+  const handleBack = () => {
+    if (currentStep === 3) {
+      setCurrentStep(2);
+      setSelectedPlace(null);
+      setShowForm(false);
+    } else if (currentStep === 2) {
+      setCurrentStep(1);
+      setSelectedEvent(null);
+      setSelectedPlace(null);
+      setShowForm(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -113,93 +139,183 @@ export default function EventRegistrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 py-8">
       <Toaster position="top-right" richColors />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-orange-600 mb-2">
+          <h1 className="text-5xl font-bold text-orange-600 mb-2">
             🙏 श्री राम शरणम् 🙏
           </h1>
-          <h2 className="text-2xl font-semibold text-gray-800">
+          <h2 className="text-3xl font-semibold text-gray-800 mb-2">
             साधना सत्संग पंजीकरण
           </h2>
+          <p className="text-gray-600">
+            कृपया सत्संग चुनें, फिर अपना स्थान चुनें और साधकों का पंजीकरण करें
+          </p>
         </div>
 
-        {/* Event Selection */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            सत्संग कार्यक्रम चुनें
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.map((event) => (
-              <button
-                key={event.id}
-                onClick={() => setSelectedEvent(event.id)}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  selectedEvent === event.id
-                    ? 'border-orange-600 bg-orange-50'
-                    : 'border-gray-200 hover:border-orange-300'
-                }`}
-              >
-                <h4 className="font-semibold text-gray-900 mb-2">{event.eventName}</h4>
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formatDate(event.startDate)} से {formatDate(event.endDate)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{event.location}</span>
-                </div>
-              </button>
-            ))}
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center gap-4">
+            {/* Step 1 */}
+            <div className="flex items-center">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                currentStep >= 1 ? 'bg-orange-600 text-white' : 'bg-gray-300 text-gray-600'
+              }`}>
+                {currentStep > 1 ? <Check className="w-6 h-6" /> : '1'}
+              </div>
+              <span className="ml-2 font-medium text-gray-700">सत्संग चुनें</span>
+            </div>
+
+            <ChevronRight className="w-6 h-6 text-gray-400" />
+
+            {/* Step 2 */}
+            <div className="flex items-center">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                currentStep >= 2 ? 'bg-orange-600 text-white' : 'bg-gray-300 text-gray-600'
+              }`}>
+                {currentStep > 2 ? <Check className="w-6 h-6" /> : '2'}
+              </div>
+              <span className="ml-2 font-medium text-gray-700">स्थान चुनें</span>
+            </div>
+
+            <ChevronRight className="w-6 h-6 text-gray-400" />
+
+            {/* Step 3 */}
+            <div className="flex items-center">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                currentStep >= 3 ? 'bg-orange-600 text-white' : 'bg-gray-300 text-gray-600'
+              }`}>
+                3
+              </div>
+              <span className="ml-2 font-medium text-gray-700">साधक जोड़ें</span>
+            </div>
           </div>
         </div>
 
-        {/* Place Selection */}
-        {selectedEvent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              स्थान चुनें
+        {/* Back Button */}
+        {currentStep > 1 && (
+          <div className="mb-6">
+            <button
+              onClick={handleBack}
+              className="px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-2"
+            >
+              ← पीछे जाएं
+            </button>
+          </div>
+        )}
+
+        {/* Step 1: Event Selection */}
+        {currentStep === 1 && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+              सत्संग कार्यक्रम चुनें
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {places.map((place) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => (
                 <button
-                  key={place.id}
-                  onClick={() => {
-                    setSelectedPlace(place.id);
-                    setShowForm(false);
-                  }}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    selectedPlace === place.id
-                      ? 'border-orange-600 bg-orange-50'
-                      : 'border-gray-200 hover:border-orange-300'
-                  }`}
+                  key={event.id}
+                  onClick={() => handleEventSelect(event.id)}
+                  className="group p-6 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-xl transition-all text-left bg-white"
                 >
-                  <p className="font-semibold text-gray-900">{place.name}</p>
-                  {place.contactPerson && (
-                    <p className="text-xs text-gray-600 mt-1">{place.contactPerson}</p>
-                  )}
+                  <h4 className="font-bold text-xl text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">
+                    {event.eventName}
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="w-5 h-5 text-orange-600" />
+                      <span className="text-sm">
+                        {formatDate(event.startDate)} से {formatDate(event.endDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <MapPin className="w-5 h-5 text-orange-600" />
+                      <span className="text-sm">{event.location}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
+                    चुनें →
+                  </div>
                 </button>
               ))}
+            </div>
+            {events.length === 0 && (
+              <p className="text-center text-gray-500 py-8">
+                कोई सक्रिय सत्संग उपलब्ध नहीं है
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Place Selection */}
+        {currentStep === 2 && selectedEventData && (
+          <div className="space-y-6">
+            {/* Selected Event Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">चयनित सत्संग:</p>
+                  <h3 className="text-xl font-bold text-orange-600">{selectedEventData.eventName}</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {formatDate(selectedEventData.startDate)} से {formatDate(selectedEventData.endDate)} • {selectedEventData.location}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Place Selection */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+                अपना स्थान चुनें
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {places.map((place) => (
+                  <button
+                    key={place.id}
+                    onClick={() => handlePlaceSelect(place.id)}
+                    className="group p-6 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-xl transition-all bg-white"
+                  >
+                    <p className="font-bold text-lg text-gray-900 group-hover:text-orange-600 transition-colors">
+                      {place.name}
+                    </p>
+                    {place.contactPerson && (
+                      <p className="text-xs text-gray-600 mt-2">{place.contactPerson}</p>
+                    )}
+                    {place.phone && (
+                      <p className="text-xs text-gray-500 mt-1">{place.phone}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Sadhak Entry Section */}
-        {selectedPlace && (
+        {/* Step 3: Sadhak Entry */}
+        {currentStep === 3 && selectedPlace && selectedEvent && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form Section */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+                {/* Selected Info */}
+                <div className="mb-6 p-4 bg-orange-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    <strong>सत्संग:</strong> {selectedEventData?.eventName}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>स्थान:</strong> {selectedPlaceData?.name}
+                  </p>
+                </div>
+
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    साधक जोड़ें - {selectedPlaceData?.name}
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    साधक जोड़ें
                   </h3>
                   <button
                     onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors shadow-md"
                   >
                     <Plus className="w-5 h-5" />
                     {showForm ? 'फॉर्म बंद करें' : 'नया साधक'}
@@ -208,7 +324,7 @@ export default function EventRegistrationPage() {
 
                 {showForm && (
                   <SadhakForm
-                    eventId={selectedEvent!}
+                    eventId={selectedEvent}
                     placeId={selectedPlace}
                     onSuccess={() => {
                       fetchSadhaks();
@@ -216,41 +332,49 @@ export default function EventRegistrationPage() {
                     }}
                   />
                 )}
+
+                {!showForm && sadhaks.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    <p className="text-lg mb-4">अभी तक कोई साधक नहीं जोड़ा गया</p>
+                    <p className="text-sm">ऊपर "नया साधक" बटन पर क्लिक करें</p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Sadhaks List */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
                   साधकों की सूची ({sadhaks.length})
                 </h3>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {sadhaks.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">
+                    <p className="text-gray-500 text-center py-8 text-sm">
                       कोई साधक नहीं मिला
                     </p>
                   ) : (
                     sadhaks.map((sadhak) => (
                       <div
                         key={sadhak.id}
-                        className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="p-4 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors"
                       >
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold text-gray-900">
                               {sadhak.serialNumber && `${sadhak.serialNumber}. `}
                               {sadhak.name}
                               {sadhak.relationship && ` (${sadhak.relationship})`}
                             </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {sadhak.age && `उम्र: ${sadhak.age}`}
+                            <div className="text-sm text-gray-600 mt-1 space-y-1">
+                              {sadhak.age && <p>उम्र: {sadhak.age}</p>}
+                              {sadhak.phone && <p>📞 {sadhak.phone}</p>}
                               {sadhak.isFirstEntry && (
-                                <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                                <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
                                   प्रथम प्रविष्ट
                                 </span>
                               )}
-                            </p>
+                            </div>
                           </div>
                         </div>
                       </div>
