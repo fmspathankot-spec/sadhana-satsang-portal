@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { sadhaks, places } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const placeId = searchParams.get('placeId');
+    const eventId = searchParams.get('eventId');
 
-    console.log('GET /api/sadhaks - placeId:', placeId);
+    console.log('GET /api/sadhaks - placeId:', placeId, 'eventId:', eventId);
 
     let query = db
       .select({
         id: sadhaks.id,
         serialNumber: sadhaks.serialNumber,
         name: sadhaks.name,
+        phone: sadhaks.phone,
         age: sadhaks.age,
         lastHaridwarYear: sadhaks.lastHaridwarYear,
         otherLocation: sadhaks.otherLocation,
@@ -23,13 +25,22 @@ export async function GET(request: Request) {
         isFirstEntry: sadhaks.isFirstEntry,
         relationship: sadhaks.relationship,
         placeId: sadhaks.placeId,
+        eventId: sadhaks.eventId,
         placeName: places.name,
       })
       .from(sadhaks)
       .leftJoin(places, eq(sadhaks.placeId, places.id));
 
+    const conditions = [];
     if (placeId) {
-      query = query.where(eq(sadhaks.placeId, parseInt(placeId)));
+      conditions.push(eq(sadhaks.placeId, parseInt(placeId)));
+    }
+    if (eventId) {
+      conditions.push(eq(sadhaks.eventId, parseInt(eventId)));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
 
     const result = await query;
@@ -70,8 +81,10 @@ export async function POST(request: Request) {
       .insert(sadhaks)
       .values({
         placeId: body.placeId,
+        eventId: body.eventId || null,
         serialNumber: body.serialNumber || null,
         name: body.name,
+        phone: body.phone || null,
         age: body.age || null,
         lastHaridwarYear: body.lastHaridwarYear || null,
         otherLocation: body.otherLocation || null,
