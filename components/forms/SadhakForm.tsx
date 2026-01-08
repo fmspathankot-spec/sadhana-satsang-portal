@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 
 const sadhakSchema = z.object({
   placeId: z.number().min(1, 'स्थान चुनना आवश्यक है'),
+  eventId: z.number().min(1, 'सत्संग चुनना आवश्यक है'),
   name: z.string().min(2, 'नाम आवश्यक है'),
+  phone: z.string().optional().nullable(),
   age: z.coerce.number().optional().nullable(),
   lastHaridwarYear: z.coerce.number().optional().nullable(),
   otherLocation: z.string().optional().nullable(),
@@ -40,6 +42,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
     resolver: zodResolver(sadhakSchema),
     defaultValues: {
       placeId,
+      eventId,
       dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
       isFirstEntry: false,
     },
@@ -52,10 +55,10 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
     setIsLoading(true);
 
     try {
-      // Clean up data - convert empty strings to null
       const cleanData = {
         ...data,
         age: data.age || null,
+        phone: data.phone || null,
         lastHaridwarYear: data.lastHaridwarYear || null,
         otherLocation: data.otherLocation || null,
         dikshitYear: data.dikshitYear || null,
@@ -88,6 +91,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       
       reset({
         placeId,
+        eventId,
         dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
         isFirstEntry: false,
       });
@@ -131,6 +135,19 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
           {errors.name && (
             <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
           )}
+        </div>
+
+        {/* Phone Number */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            फोन नंबर
+          </label>
+          <input
+            type="tel"
+            {...register('phone')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="9876543210"
+          />
         </div>
 
         {/* Relationship */}
@@ -252,7 +269,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
         </button>
       </div>
 
-      {/* Debug Info (Remove in production) */}
+      {/* Debug Info */}
       {Object.keys(errors).length > 0 && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-800 font-semibold mb-2">त्रुटियाँ:</p>
