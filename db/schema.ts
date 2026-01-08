@@ -42,7 +42,7 @@ export const sadhaks = pgTable(
     otherLocation: varchar('other_location', { length: 100 }),
     dikshitYear: integer('dikshit_year'),
     dikshitBy: varchar('dikshit_by', { length: 200 })
-      .default('डॉ. श्री विश्वामित्र जी महाराज')
+      .default('Dr. Shri Vishwamitra Ji Maharaj')
       .notNull(),
     isFirstEntry: boolean('is_first_entry').default(false).notNull(),
     relationship: varchar('relationship', { length: 50 }),
@@ -58,7 +58,7 @@ export const sadhaks = pgTable(
 // Satsang Events Table
 export const satsangEvents = pgTable('satsang_events', {
   id: serial('id').primaryKey(),
-  eventType: varchar('event_type', { length: 50 }).notNull().default('साधना'), // 'साधना' or 'खुला'
+  eventType: varchar('event_type', { length: 50 }).notNull().default('sadhna'), // 'sadhna' or 'khula'
   eventName: varchar('event_name', { length: 200 }).notNull(),
   startDate: date('start_date').notNull(),
   endDate: date('end_date').notNull(),
