@@ -10,6 +10,7 @@ import { X } from 'lucide-react';
 const sadhakSchema = z.object({
   placeId: z.number().min(1, 'स्थान चुनना आवश्यक है'),
   name: z.string().min(2, 'नाम आवश्यक है'),
+  phone: z.string().optional().nullable(),
   age: z.coerce.number().optional().nullable(),
   lastHaridwarYear: z.coerce.number().optional().nullable(),
   otherLocation: z.string().optional().nullable(),
@@ -46,6 +47,7 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
       placeId: sadhak.placeId,
       serialNumber: sadhak.serialNumber,
       name: sadhak.name,
+      phone: sadhak.phone || '',
       age: sadhak.age,
       lastHaridwarYear: sadhak.lastHaridwarYear,
       otherLocation: sadhak.otherLocation || '',
@@ -65,6 +67,7 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
       const cleanData = {
         ...data,
         age: data.age || null,
+        phone: data.phone || null,
         lastHaridwarYear: data.lastHaridwarYear || null,
         otherLocation: data.otherLocation || null,
         dikshitYear: data.dikshitYear || null,
@@ -109,19 +112,18 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Serial Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                क्रमांक
-              </label>
-              <input
-                type="number"
-                {...register('serialNumber')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
+          {/* Serial Number Display (Read-only) */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">क्रमांक (बदला नहीं जा सकता)</p>
+                <p className="text-2xl font-bold text-gray-800">{sadhak.serialNumber || 'N/A'}</p>
+              </div>
+              <div className="text-4xl">🔢</div>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -135,6 +137,19 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
               {errors.name && (
                 <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
               )}
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                फोन नंबर
+              </label>
+              <input
+                type="tel"
+                {...register('phone')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="9876543210"
+              />
             </div>
 
             {/* Relationship */}
