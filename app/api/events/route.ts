@@ -1,14 +1,30 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { satsangEvents } from '@/db/schema';
-import { desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const events = await db
-      .select()
-      .from(satsangEvents)
-      .orderBy(desc(satsangEvents.startDate));
+    const { searchParams } = new URL(request.url);
+    const eventType = searchParams.get('eventType');
+
+    console.log('GET /api/events - eventType:', eventType);
+
+    let query = db.select().from(satsangEvents).orderBy(desc(satsangEvents.startDate));
+
+    if (eventType) {
+      query = query.where(
+        and(
+          eq(satsangEvents.eventType, eventType),
+          eq(satsangEvents.isActive, true)
+        )
+      );
+    } else {
+      query = query.where(eq(satsangEvents.isActive, true));
+    }
+
+    const events = await query;
+    console.log('Found events:', events.length);
 
     return NextResponse.json(events);
   } catch (error) {
@@ -23,12 +39,25 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+    console.log('POST /api/events - Received data:', body);
+
     const [event] = await db
       .insert(satsangEvents)
-      .values(body)
+      .values({
+        eventType: body.eventType || 'साधना',
+        eventName: body.eventName,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        location: body.location,
+        organizerName: body.organizerName || null,
+        organizerAddress: body.organizerAddress || null,
+        organizerPhone: body.organizerPhone || null,
+        organizerEmail: body.organizerEmail || null,
+        isActive: body.isActive !== undefined ? body.isActive : true,
+      })
       .returning();
 
+    console.log('Created event:', event);
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
     console.error('Error creating event:', error);
