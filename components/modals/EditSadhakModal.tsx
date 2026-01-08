@@ -79,7 +79,7 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
         serialNumber: data.serialNumber || null,
       };
 
-      const response = await fetch(`/api/sadhaks/${sadhak.id}`, {
+      const response = await fetch(`/api/sadhaks/id?id=${sadhak.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cleanData),
