@@ -18,7 +18,7 @@ export const places = pgTable('places', {
   name: varchar('name', { length: 100 }).notNull(),
   contactPerson: varchar('contact_person', { length: 100 }),
   address: text('address'),
-  phone: varchar('phone', { length: 50 }), // Increased from 20 to 50
+  phone: varchar('phone', { length: 50 }),
   email: varchar('email', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -32,8 +32,11 @@ export const sadhaks = pgTable(
     placeId: integer('place_id')
       .notNull()
       .references(() => places.id, { onDelete: 'cascade' }),
+    eventId: integer('event_id')
+      .references(() => satsangEvents.id, { onDelete: 'set null' }),
     serialNumber: integer('serial_number'),
     name: varchar('name', { length: 100 }).notNull(),
+    phone: varchar('phone', { length: 50 }),
     age: integer('age'),
     lastHaridwarYear: integer('last_haridwar_year'),
     otherLocation: varchar('other_location', { length: 100 }),
@@ -48,6 +51,7 @@ export const sadhaks = pgTable(
   },
   (table) => ({
     placeIdIdx: index('sadhaks_place_id_idx').on(table.placeId),
+    eventIdIdx: index('sadhaks_event_id_idx').on(table.eventId),
   })
 );
 
@@ -60,8 +64,9 @@ export const satsangEvents = pgTable('satsang_events', {
   location: varchar('location', { length: 100 }).notNull(),
   organizerName: varchar('organizer_name', { length: 100 }),
   organizerAddress: text('organizer_address'),
-  organizerPhone: varchar('organizer_phone', { length: 50 }), // Increased from 20 to 50
+  organizerPhone: varchar('organizer_phone', { length: 50 }),
   organizerEmail: varchar('organizer_email', { length: 100 }),
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -97,11 +102,16 @@ export const sadhaksRelations = relations(sadhaks, ({ one, many }) => ({
     fields: [sadhaks.placeId],
     references: [places.id],
   }),
+  event: one(satsangEvents, {
+    fields: [sadhaks.eventId],
+    references: [satsangEvents.id],
+  }),
   registrations: many(registrations),
 }));
 
 export const satsangEventsRelations = relations(satsangEvents, ({ many }) => ({
   registrations: many(registrations),
+  sadhaks: many(sadhaks),
 }));
 
 export const registrationsRelations = relations(registrations, ({ one }) => ({
