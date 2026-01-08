@@ -58,6 +58,7 @@ export const sadhaks = pgTable(
 // Satsang Events Table
 export const satsangEvents = pgTable('satsang_events', {
   id: serial('id').primaryKey(),
+  eventType: varchar('event_type', { length: 50 }).notNull().default('साधना'), // 'साधना' or 'खुला'
   eventName: varchar('event_name', { length: 200 }).notNull(),
   startDate: date('start_date').notNull(),
   endDate: date('end_date').notNull(),
