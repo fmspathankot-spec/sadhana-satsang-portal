@@ -70,6 +70,7 @@ export default function EventRegistrationPage() {
     try {
       const response = await fetch(`/api/events?eventType=${eventType}`);
       const data = await response.json();
+      console.log('Fetched events:', data);
       setEvents(data);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -148,6 +149,10 @@ export default function EventRegistrationPage() {
       setSelectedPlace(null);
       setShowForm(false);
     }
+  };
+
+  const getEventTypeLabel = (type: string) => {
+    return type === 'sadhna' ? 'साधना सत्संग' : 'खुले सत्संग';
   };
 
   if (loading) {
@@ -248,7 +253,7 @@ export default function EventRegistrationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
               {/* Sadhna Satsang */}
               <button
-                onClick={() => handleEventTypeSelect('साधना')}
+                onClick={() => handleEventTypeSelect('sadhna')}
                 className="group p-8 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-2xl transition-all bg-gradient-to-br from-orange-50 to-white"
               >
                 <div className="text-6xl mb-4">🕉️</div>
@@ -265,7 +270,7 @@ export default function EventRegistrationPage() {
 
               {/* Khula Satsang */}
               <button
-                onClick={() => handleEventTypeSelect('खुला')}
+                onClick={() => handleEventTypeSelect('khula')}
                 className="group p-8 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-2xl transition-all bg-gradient-to-br from-blue-50 to-white"
               >
                 <div className="text-6xl mb-4">🙏</div>
@@ -292,7 +297,7 @@ export default function EventRegistrationPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">चयनित प्रकार:</p>
                   <h3 className="text-xl font-bold text-orange-600">
-                    {selectedEventType === 'साधना' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
+                    {selectedEventType === 'sadhna' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
                   </h3>
                 </div>
               </div>
@@ -393,7 +398,7 @@ export default function EventRegistrationPage() {
                 {/* Selected Info */}
                 <div className="mb-6 p-4 bg-orange-50 rounded-lg space-y-1">
                   <p className="text-sm text-gray-600">
-                    <strong>प्रकार:</strong> {selectedEventType === 'साधना' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
+                    <strong>प्रकार:</strong> {selectedEventType === 'sadhna' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
                   </p>
                   <p className="text-sm text-gray-600">
                     <strong>सत्संग:</strong> {selectedEventData?.eventName}
