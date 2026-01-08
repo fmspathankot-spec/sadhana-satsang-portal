@@ -15,7 +15,9 @@ export async function GET(request: Request) {
       .select({
         id: sadhaks.id,
         serialNumber: sadhaks.serialNumber,
+        placeName: sadhaks.placeName,
         name: sadhaks.name,
+        gender: sadhaks.gender,
         phone: sadhaks.phone,
         age: sadhaks.age,
         lastHaridwarYear: sadhaks.lastHaridwarYear,
@@ -26,7 +28,6 @@ export async function GET(request: Request) {
         relationship: sadhaks.relationship,
         placeId: sadhaks.placeId,
         eventId: sadhaks.eventId,
-        placeName: places.name,
       })
       .from(sadhaks)
       .leftJoin(places, eq(sadhaks.placeId, places.id));
@@ -69,9 +70,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!body.placeName || body.placeName.trim() === '') {
+      return NextResponse.json(
+        { error: 'placeName is required' },
+        { status: 400 }
+      );
+    }
+
     if (!body.name || body.name.trim() === '') {
       return NextResponse.json(
         { error: 'name is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.gender || !['male', 'female'].includes(body.gender)) {
+      return NextResponse.json(
+        { error: 'gender is required and must be male or female' },
         { status: 400 }
       );
     }
@@ -83,7 +98,9 @@ export async function POST(request: Request) {
         placeId: body.placeId,
         eventId: body.eventId || null,
         serialNumber: body.serialNumber || null,
+        placeName: body.placeName,
         name: body.name,
+        gender: body.gender,
         phone: body.phone || null,
         age: body.age || null,
         lastHaridwarYear: body.lastHaridwarYear || null,
