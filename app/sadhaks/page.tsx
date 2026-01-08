@@ -8,7 +8,9 @@ import EditSadhakModal from '@/components/modals/EditSadhakModal';
 interface Sadhak {
   id: number;
   serialNumber: number | null;
+  placeName: string;
   name: string;
+  gender: string | null;
   age: number | null;
   lastHaridwarYear: number | null;
   otherLocation: string | null;
@@ -17,7 +19,7 @@ interface Sadhak {
   isFirstEntry: boolean;
   relationship: string | null;
   placeId: number;
-  placeName: string;
+  eventId: number | null;
 }
 
 interface Place {
@@ -25,18 +27,33 @@ interface Place {
   name: string;
 }
 
+interface SatsangEvent {
+  id: number;
+  eventName: string;
+  eventType: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+}
+
 export default function SadhaksListPage() {
   const [sadhaks, setSadhaks] = useState<Sadhak[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [events, setEvents] = useState<SatsangEvent[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<number | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSadhak, setEditingSadhak] = useState<Sadhak | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchPlaces();
+    fetchEvents();
+  }, []);
+
+  useEffect(() => {
     fetchSadhaks();
-  }, [selectedPlace]);
+  }, [selectedPlace, selectedEvent]);
 
   const fetchPlaces = async () => {
     try {
@@ -48,11 +65,23 @@ export default function SadhaksListPage() {
     }
   };
 
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events');
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  };
+
   const fetchSadhaks = async () => {
     try {
-      const url = selectedPlace
-        ? `/api/sadhaks?placeId=${selectedPlace}`
-        : '/api/sadhaks';
+      const params = new URLSearchParams();
+      if (selectedPlace) params.append('placeId', selectedPlace.toString());
+      if (selectedEvent) params.append('eventId', selectedEvent.toString());
+
+      const url = `/api/sadhaks${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
       setSadhaks(data);
@@ -69,7 +98,7 @@ export default function SadhaksListPage() {
     }
 
     try {
-      const response = await fetch(`/api/sadhaks/${id}`, {
+      const response = await fetch(`/api/sadhaks/id?id=${id}`, {
         method: 'DELETE',
       });
 
@@ -80,6 +109,33 @@ export default function SadhaksListPage() {
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('हटाने में त्रुटि हुई');
+    }
+  };
+
+  const handleExportODF = async () => {
+    if (!selectedEvent) {
+      toast.error('कृपया पहले सत्संग चुनें');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/export/odf?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.odt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('ODF फ़ाइल डाउनलोड हो रही है');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('एक्सपोर्ट में त्रुटि हुई');
     }
   };
 
@@ -95,6 +151,15 @@ export default function SadhaksListPage() {
     acc[placeName].push(sadhak);
     return acc;
   }, {} as Record<string, Sadhak[]>);
+
+  // Sort sadhaks by serial number within each place
+  Object.keys(groupedByPlace).forEach((placeName) => {
+    groupedByPlace[placeName].sort((a, b) => 
+      (a.serialNumber || 0) - (b.serialNumber || 0)
+    );
+  });
+
+  const selectedEventData = events.find(e => e.id === selectedEvent);
 
   if (loading) {
     return (
@@ -119,51 +184,98 @@ export default function SadhaksListPage() {
 
         {/* Filters and Actions */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="नाम से खोजें..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Event Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                सत्संग चुनें <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedEvent || ''}
+                onChange={(e) => setSelectedEvent(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="">सभी सत्संग</option>
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.eventName} - {event.location}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Place Filter */}
-            <select
-              value={selectedPlace || ''}
-              onChange={(e) => setSelectedPlace(e.target.value ? parseInt(e.target.value) : null)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              <option value="">सभी स्थान</option>
-              {places.map((place) => (
-                <option key={place.id} value={place.id}>
-                  {place.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                स्थान फ़िल्टर
+              </label>
+              <select
+                value={selectedPlace || ''}
+                onChange={(e) => setSelectedPlace(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="">सभी स्थान</option>
+                {places.map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Export Buttons */}
-            <div className="flex gap-2">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                नाम से खोजें
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="नाम से खोजें..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Export Button */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                एक्सपोर्ट
+              </label>
               <button
-                onClick={() => window.open('/reports', '_blank')}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                onClick={handleExportODF}
+                disabled={!selectedEvent}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <FileText className="w-5 h-5" />
-                PDF
-              </button>
-              <button
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <FileSpreadsheet className="w-5 h-5" />
-                Excel
+                ODF Export
               </button>
             </div>
           </div>
         </div>
+
+        {/* Event Info Banner */}
+        {selectedEventData && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-orange-900">
+                  {selectedEventData.eventName}
+                </h3>
+                <p className="text-sm text-orange-700">
+                  📍 {selectedEventData.location} | 📅 {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} से {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-orange-600">कुल साधक</p>
+                <p className="text-3xl font-bold text-orange-900">{filteredSadhaks.length}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -176,18 +288,15 @@ export default function SadhaksListPage() {
             <p className="text-3xl font-bold text-blue-600">{Object.keys(groupedByPlace).length}</p>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">प्रथम प्रविष्ट</p>
+            <p className="text-gray-600 text-sm">पुरुष</p>
             <p className="text-3xl font-bold text-green-600">
-              {filteredSadhaks.filter(s => s.isFirstEntry).length}
+              {filteredSadhaks.filter(s => s.gender === 'male').length}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">औसत उम्र</p>
-            <p className="text-3xl font-bold text-purple-600">
-              {Math.round(
-                filteredSadhaks.filter(s => s.age).reduce((sum, s) => sum + (s.age || 0), 0) /
-                filteredSadhaks.filter(s => s.age).length
-              ) || 0}
+            <p className="text-gray-600 text-sm">महिला</p>
+            <p className="text-3xl font-bold text-pink-600">
+              {filteredSadhaks.filter(s => s.gender === 'female').length}
             </p>
           </div>
         </div>
@@ -210,32 +319,33 @@ export default function SadhaksListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">क्रमांक</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">नाम</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">संबंध</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">उम्र</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">अंतिम हरिद्वार</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">अन्य स्थान</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">दीक्षित</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">दीक्षित कब और किससे</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">कार्य</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {placeSadhaks.map((sadhak) => (
                       <tr key={sadhak.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                           {sadhak.serialNumber || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {sadhak.name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {sadhak.relationship || '-'}
+                          {sadhak.relationship && (
+                            <span className="text-xs text-gray-500 ml-2">
+                              ({sadhak.relationship})
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {sadhak.age || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {sadhak.isFirstEntry ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">
                               प्रथम प्रविष्ट
                             </span>
                           ) : (
@@ -246,7 +356,16 @@ export default function SadhaksListPage() {
                           {sadhak.otherLocation || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {sadhak.dikshitYear || '-'}
+                          {sadhak.dikshitYear ? (
+                            <div>
+                              <span className="font-medium">{sadhak.dikshitYear}</span>
+                              <span className="text-xs text-gray-500 block">
+                                ({sadhak.dikshitBy})
+                              </span>
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -276,8 +395,10 @@ export default function SadhaksListPage() {
         ))}
 
         {filteredSadhaks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">कोई साधक नहीं मिला</p>
+          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
+            <p className="text-gray-500 text-lg">
+              {selectedEvent ? 'इस सत्संग के लिए कोई साधक नहीं मिला' : 'कृपया सत्संग चुनें'}
+            </p>
           </div>
         )}
       </div>
