@@ -35,7 +35,9 @@ export const sadhaks = pgTable(
     eventId: integer('event_id')
       .references(() => satsangEvents.id, { onDelete: 'set null' }),
     serialNumber: integer('serial_number'),
+    placeName: varchar('place_name', { length: 100 }).notNull(), // New: Store place name directly
     name: varchar('name', { length: 100 }).notNull(),
+    gender: varchar('gender', { length: 10 }), // New: 'male' or 'female'
     phone: varchar('phone', { length: 50 }),
     age: integer('age'),
     lastHaridwarYear: integer('last_haridwar_year'),
