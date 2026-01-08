@@ -9,7 +9,9 @@ import { X } from 'lucide-react';
 
 const sadhakSchema = z.object({
   placeId: z.number().min(1, 'स्थान चुनना आवश्यक है'),
+  placeName: z.string().min(2, 'स्थान का नाम आवश्यक है'),
   name: z.string().min(2, 'नाम आवश्यक है'),
+  gender: z.enum(['male', 'female'], { required_error: 'लिंग चुनना आवश्यक है' }),
   phone: z.string().optional().nullable(),
   age: z.coerce.number().optional().nullable(),
   lastHaridwarYear: z.coerce.number().optional().nullable(),
@@ -45,8 +47,10 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
     resolver: zodResolver(sadhakSchema),
     defaultValues: {
       placeId: sadhak.placeId,
+      placeName: sadhak.placeName || '',
       serialNumber: sadhak.serialNumber,
       name: sadhak.name,
+      gender: sadhak.gender as 'male' | 'female',
       phone: sadhak.phone || '',
       age: sadhak.age,
       lastHaridwarYear: sadhak.lastHaridwarYear,
@@ -124,6 +128,22 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Place Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                स्थान <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                {...register('placeName')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="पठानकोट, जम्मू, अमृतसर..."
+              />
+              {errors.placeName && (
+                <p className="text-red-500 text-sm mt-1">{errors.placeName.message}</p>
+              )}
+            </div>
+
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -136,6 +156,36 @@ export default function EditSadhakModal({ sadhak, onClose, onSuccess }: EditSadh
               />
               {errors.name && (
                 <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+              )}
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                लिंग <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="male"
+                    {...register('gender')}
+                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">पुरुष (Male)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="female"
+                    {...register('gender')}
+                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">महिला (Female)</span>
+                </label>
+              </div>
+              {errors.gender && (
+                <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>
               )}
             </div>
 
