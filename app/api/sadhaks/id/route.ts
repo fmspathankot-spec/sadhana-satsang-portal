@@ -3,15 +3,21 @@ import { db } from '@/db';
 import { sadhaks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request) {
   try {
-    const id = parseInt(params.id);
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID is required' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
 
-    console.log('PUT /api/sadhaks/[id] - ID:', id, 'Data:', body);
+    console.log('PUT /api/sadhaks/id - ID:', id, 'Data:', body);
 
     // Validate required fields
     if (!body.placeName || body.placeName.trim() === '') {
@@ -52,7 +58,7 @@ export async function PUT(
         relationship: body.relationship || null,
         updatedAt: new Date(),
       })
-      .where(eq(sadhaks.id, id))
+      .where(eq(sadhaks.id, parseInt(id)))
       .returning();
 
     if (!updatedSadhak) {
@@ -77,18 +83,23 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request) {
   try {
-    const id = parseInt(params.id);
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-    console.log('DELETE /api/sadhaks/[id] - ID:', id);
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('DELETE /api/sadhaks/id - ID:', id);
 
     const [deletedSadhak] = await db
       .delete(sadhaks)
-      .where(eq(sadhaks.id, id))
+      .where(eq(sadhaks.id, parseInt(id)))
       .returning();
 
     if (!deletedSadhak) {
