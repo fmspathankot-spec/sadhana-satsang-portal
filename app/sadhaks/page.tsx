@@ -4,6 +4,16 @@ import { useState, useEffect } from 'react';
 import { Search, Edit, Trash2, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import EditSadhakModal from '@/components/modals/EditSadhakModal';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Extend jsPDF interface for autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 
 interface Sadhak {
   id: number;
@@ -36,6 +46,18 @@ interface SatsangEvent {
   endDate: string;
 }
 
+// Function to convert ArrayBuffer to Base64
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+};
+
+
 export default function SadhaksListPage() {
   const [sadhaks, setSadhaks] = useState<Sadhak[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
@@ -45,6 +67,7 @@ export default function SadhaksListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSadhak, setEditingSadhak] = useState<Sadhak | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     fetchPlaces();
@@ -139,6 +162,73 @@ export default function SadhaksListPage() {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!selectedEvent) {
+      toast.error('कृपया पहले सत्संग चुनें');
+      return;
+    }
+    setExportingPdf(true);
+    toast.info('PDF बनाया जा रहा है... (फ़ॉन्ट लोड हो रहा है)');
+
+    try {
+      // Fetch font from our own API proxy
+      const fontUrl = '/api/font';
+      const fontResponse = await fetch(fontUrl);
+      if (!fontResponse.ok) throw new Error('Font could not be loaded');
+      
+      const fontBuffer = await fontResponse.arrayBuffer();
+      const fontBase64 = arrayBufferToBase64(fontBuffer);
+
+      toast.info('PDF बनाया जा रहा है... (फ़ॉन्ट लोड हो गया)');
+
+      const doc = new jsPDF();
+      
+      // Add the font to jsPDF
+      doc.addFileToVFS('NotoSansDevanagari-Regular.ttf', fontBase64);
+      doc.addFont('NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari', 'normal');
+      doc.setFont('NotoSansDevanagari');
+
+      const selectedEventData = events.find(e => e.id === selectedEvent);
+      const title = `साधकों की सूची - ${selectedEventData?.eventName || ''}`;
+      doc.text(title, 14, 15);
+
+      const head = [['क्रमांक', 'नाम', 'उम्र', 'अंतिम हरिद्वार', 'अन्य स्थान', 'दीक्षित']];
+      
+      const body = filteredSadhaks.map(s => [
+        s.serialNumber || '-',
+        s.name,
+        s.age || '-',
+        s.isFirstEntry ? 'प्रथम प्रविष्ट' : s.lastHaridwarYear || '-',
+        s.otherLocation || '-',
+        s.dikshitYear ? `${s.dikshitYear} (${s.dikshitBy})` : '-'
+      ]);
+
+      doc.autoTable({
+        head,
+        body,
+        startY: 20,
+        styles: {
+          font: 'NotoSansDevanagari',
+          fontStyle: 'normal',
+        },
+        headStyles: {
+          fillColor: [234, 88, 12], // primary-600
+          textColor: 255,
+        },
+      });
+
+      doc.save(`sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('PDF सफलतापूर्वक बन गया');
+
+    } catch (error) {
+      console.error('PDF Export error:', error);
+      toast.error('PDF बनाने में त्रुटि हुई');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+
   const filteredSadhaks = sadhaks.filter((sadhak) =>
     sadhak.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -184,7 +274,7 @@ export default function SadhaksListPage() {
 
         {/* Filters and Actions */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             {/* Event Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -240,19 +330,29 @@ export default function SadhaksListPage() {
               </div>
             </div>
 
-            {/* Export Button */}
+            {/* Export Buttons */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 एक्सपोर्ट
               </label>
-              <button
-                onClick={handleExportODF}
-                disabled={!selectedEvent}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                <FileText className="w-5 h-5" />
-                ODF Export
-              </button>
+              <div className="flex gap-2">
+                 <button
+                    onClick={handleExportPDF}
+                    disabled={!selectedEvent || exportingPdf}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FileText className="w-5 h-5" />
+                    {exportingPdf ? 'बना रहा है...' : 'PDF Export'}
+                  </button>
+                <button
+                  onClick={handleExportODF}
+                  disabled={!selectedEvent}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                  ODF Export
+                </button>
+              </div>
             </div>
           </div>
         </div>
