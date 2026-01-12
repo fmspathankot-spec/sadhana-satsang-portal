@@ -119,28 +119,52 @@ export default function SadhaksListPage() {
     }
 
     try {
+      toast.loading('PDF तैयार हो रही है...');
+      
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
 
       const html = await response.text();
       
-      // Open in new window for printing
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        
-        // Wait for content to load, then print
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
-        
-        toast.success('PDF प्रिंट विंडो खुल रही है');
-      }
+      // Dynamically import html2pdf
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create a temporary container
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+      
+      // Configure options
+      const opt = {
+        margin: [15, 15, 15, 15],
+        filename: `sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' 
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+      
+      // Generate PDF
+      await html2pdf().set(opt).from(container).save();
+      
+      // Cleanup
+      document.body.removeChild(container);
+      
+      toast.dismiss();
+      toast.success('PDF डाउनलोड हो रही है');
     } catch (error) {
       console.error('Export error:', error);
+      toast.dismiss();
       toast.error('एक्सपोर्ट में त्रुटि हुई');
     }
   };
@@ -286,7 +310,7 @@ export default function SadhaksListPage() {
                 onClick={handleExportPDF}
                 disabled={!selectedEvent}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                title="PDF में प्रिंट करें (Ctrl+P से Save as PDF)"
+                title="PDF डाउनलोड करें"
               >
                 <FileText className="w-4 h-4" />
                 PDF
