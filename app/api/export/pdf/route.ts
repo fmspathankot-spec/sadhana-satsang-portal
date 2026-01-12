@@ -2,7 +2,18 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { sadhaks, satsangEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import PDFDocument from 'pdfkit';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -58,87 +69,63 @@ export async function GET(request: Request) {
     });
 
     // Create PDF
-    const doc = new PDFDocument({ 
-      size: 'A4',
-      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
     });
 
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
-
-    // Register Devanagari font (you'll need to add this font file)
-    // For now, using default font
-    doc.font('Helvetica');
-
     // Header
-    doc.fontSize(16).text("'श्री राम'", { align: 'center' });
-    doc.moveDown(0.5);
+    doc.setFontSize(16);
+    doc.text("'श्री राम'", doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
     
-    doc.fontSize(14).text(
-      `पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची`,
+    doc.setFontSize(14);
+    doc.text(
+      'पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची',
+      doc.internal.pageSize.getWidth() / 2,
+      30,
       { align: 'center' }
     );
-    doc.moveDown(0.3);
     
-    doc.fontSize(10).text(
-      `( आप जी की स्वीकृति के लिए )`,
+    doc.setFontSize(10);
+    doc.text(
+      '( आप जी की स्वीकृति के लिए )',
+      doc.internal.pageSize.getWidth() / 2,
+      37,
       { align: 'center' }
     );
-    doc.moveDown(1);
 
-    // Event details - Left side
-    const leftX = 50;
-    const rightX = 350;
-    let currentY = doc.y;
-
-    doc.fontSize(9);
-    doc.text(`भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट`, leftX, currentY, { width: 300 });
-    doc.text(`साधना सत्संग दिनांक ${startDate} से ${endDate}`, rightX, currentY, { width: 200 });
+    // Event details
+    doc.setFontSize(9);
+    let yPos = 45;
     
-    currentY += 15;
-    doc.text(`पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट`, leftX, currentY, { width: 300 });
-    doc.text(`स्थान : ${event.location}`, rightX, currentY, { width: 200 });
+    doc.text(`भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट`, 15, yPos);
+    doc.text(`साधना सत्संग दिनांक ${startDate} से ${endDate}`, 120, yPos);
     
-    currentY += 15;
-    doc.text(`दूरभाष : 0186-2224242, 9872035936`, leftX, currentY, { width: 300 });
-    doc.text(`ईमेल: shreeramsharnampathankot@gmail.com`, rightX, currentY, { width: 200 });
+    yPos += 5;
+    doc.text('पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट', 15, yPos);
+    doc.text(`स्थान : ${event.location}`, 120, yPos);
+    
+    yPos += 5;
+    doc.text('दूरभाष : 0186-2224242, 9872035936', 15, yPos);
+    doc.text('ईमेल: shreeramsharnampathankot@gmail.com', 120, yPos);
 
-    doc.moveDown(2);
+    yPos += 10;
 
     // Tables for each place
     Object.entries(groupedByPlace).forEach(([placeName, sadhaksList], placeIndex) => {
       if (placeIndex > 0) {
         doc.addPage();
+        yPos = 20;
       }
 
       // Place name header
-      doc.fontSize(14).text(placeName, { align: 'center', underline: true });
-      doc.moveDown(1);
+      doc.setFontSize(14);
+      doc.text(placeName, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+      yPos += 8;
 
-      // Table headers
-      const tableTop = doc.y;
-      const colWidths = [60, 150, 50, 80, 100, 200];
-      const headers = ['क्रमांक', 'नाम', 'उम्र', 'अंतिम\nहरिद्वार', 'किसी भी अन्य\nस्थान पर', 'दीक्षित कब और किससे'];
-      
-      let currentX = 50;
-      doc.fontSize(9);
-      
-      // Draw header row
-      headers.forEach((header, i) => {
-        doc.rect(currentX, tableTop, colWidths[i], 30).stroke();
-        doc.text(header, currentX + 5, tableTop + 8, { 
-          width: colWidths[i] - 10,
-          align: 'center'
-        });
-        currentX += colWidths[i];
-      });
-
-      // Draw data rows
-      let rowY = tableTop + 30;
-      sadhaksList.forEach((sadhak) => {
-        currentX = 50;
-        const rowHeight = 25;
-
+      // Prepare table data
+      const tableData = sadhaksList.map((sadhak) => {
         // Format name with relationship
         let displayName = sadhak.name;
         if (sadhak.relationship) {
@@ -147,7 +134,7 @@ export async function GET(request: Request) {
 
         // Format last Haridwar
         const lastHaridwar = sadhak.isFirstEntry 
-          ? 'प्रथम\nप्रविष्ट' 
+          ? 'प्रथम प्रविष्ट' 
           : sadhak.lastHaridwarYear?.toString() || '-';
 
         // Format dikshit info
@@ -155,7 +142,7 @@ export async function GET(request: Request) {
           ? `${sadhak.dikshitYear} –(${sadhak.dikshitBy})`
           : `(${sadhak.dikshitBy})`;
 
-        const rowData = [
+        return [
           sadhak.serialNumber?.toString() || '-',
           displayName,
           sadhak.age?.toString() || '-',
@@ -163,41 +150,55 @@ export async function GET(request: Request) {
           sadhak.otherLocation || '-',
           dikshitInfo
         ];
-
-        // Draw cells
-        rowData.forEach((data, i) => {
-          doc.rect(currentX, rowY, colWidths[i], rowHeight).stroke();
-          doc.text(data, currentX + 5, rowY + 5, {
-            width: colWidths[i] - 10,
-            align: i === 0 ? 'center' : 'left'
-          });
-          currentX += colWidths[i];
-        });
-
-        rowY += rowHeight;
-
-        // Add new page if needed
-        if (rowY > 700) {
-          doc.addPage();
-          rowY = 50;
-        }
       });
 
-      doc.moveDown(2);
+      // Create table
+      doc.autoTable({
+        startY: yPos,
+        head: [[
+          'क्रमांक',
+          'नाम',
+          'उम्र',
+          'अंतिम\nहरिद्वार',
+          'किसी भी अन्य\nस्थान पर',
+          'दीक्षित कब और किससे'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: 9,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          halign: 'left'
+        },
+        headStyles: {
+          fillColor: [255, 237, 213],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 20, halign: 'center' },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 15, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 50 }
+        },
+        margin: { left: 15, right: 15 }
+      });
+
+      yPos = doc.lastAutoTable.finalY + 10;
     });
 
     // Footer
     doc.addPage();
-    doc.fontSize(14).text('धन्यवाद', { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('धन्यवाद', doc.internal.pageSize.getWidth() / 2, 100, { align: 'center' });
 
-    doc.end();
-
-    // Wait for PDF to finish
-    await new Promise((resolve) => {
-      doc.on('end', resolve);
-    });
-
-    const pdfBuffer = Buffer.concat(chunks);
+    // Generate PDF buffer
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
     return new NextResponse(pdfBuffer, {
       headers: {
