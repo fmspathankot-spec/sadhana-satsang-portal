@@ -1,19 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash2, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Edit, Trash2, FileText } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import EditSadhakModal from '@/components/modals/EditSadhakModal';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Extend jsPDF interface for autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
-
 
 interface Sadhak {
   id: number;
@@ -46,18 +36,6 @@ interface SatsangEvent {
   endDate: string;
 }
 
-// Function to convert ArrayBuffer to Base64
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-};
-
-
 export default function SadhaksListPage() {
   const [sadhaks, setSadhaks] = useState<Sadhak[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
@@ -67,7 +45,6 @@ export default function SadhaksListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSadhak, setEditingSadhak] = useState<Sadhak | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     fetchPlaces();
@@ -135,99 +112,59 @@ export default function SadhaksListPage() {
     }
   };
 
-  const handleExportODF = async () => {
+  const handleExportPDF = async () => {
     if (!selectedEvent) {
       toast.error('कृपया पहले सत्संग चुनें');
       return;
     }
 
     try {
-      const response = await fetch(`/api/export/odf?eventId=${selectedEvent}`);
+      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.odt`;
+      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast.success('ODF फ़ाइल डाउनलोड हो रही है');
+      toast.success('PDF फ़ाइल डाउनलोड हो रही है');
     } catch (error) {
       console.error('Export error:', error);
       toast.error('एक्सपोर्ट में त्रुटि हुई');
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportCSV = async () => {
     if (!selectedEvent) {
       toast.error('कृपया पहले सत्संग चुनें');
       return;
     }
-    setExportingPdf(true);
-    toast.info('PDF बनाया जा रहा है... (फ़ॉन्ट लोड हो रहा है)');
 
     try {
-      // Fetch font from our own API proxy
-      const fontUrl = '/api/font';
-      const fontResponse = await fetch(fontUrl);
-      if (!fontResponse.ok) throw new Error('Font could not be loaded');
-      
-      const fontBuffer = await fontResponse.arrayBuffer();
-      const fontBase64 = arrayBufferToBase64(fontBuffer);
+      const response = await fetch(`/api/export/csv?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
 
-      toast.info('PDF बनाया जा रहा है... (फ़ॉन्ट लोड हो गया)');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-      const doc = new jsPDF();
-      
-      // Add the font to jsPDF
-      doc.addFileToVFS('NotoSansDevanagari-Regular.ttf', fontBase64);
-      doc.addFont('NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari', 'normal');
-      doc.setFont('NotoSansDevanagari');
-
-      const selectedEventData = events.find(e => e.id === selectedEvent);
-      const title = `साधकों की सूची - ${selectedEventData?.eventName || ''}`;
-      doc.text(title, 14, 15);
-
-      const head = [['क्रमांक', 'नाम', 'उम्र', 'अंतिम हरिद्वार', 'अन्य स्थान', 'दीक्षित']];
-      
-      const body = filteredSadhaks.map(s => [
-        s.serialNumber || '-',
-        s.name,
-        s.age || '-',
-        s.isFirstEntry ? 'प्रथम प्रविष्ट' : s.lastHaridwarYear || '-',
-        s.otherLocation || '-',
-        s.dikshitYear ? `${s.dikshitYear} (${s.dikshitBy})` : '-'
-      ]);
-
-      doc.autoTable({
-        head,
-        body,
-        startY: 20,
-        styles: {
-          font: 'NotoSansDevanagari',
-          fontStyle: 'normal',
-        },
-        headStyles: {
-          fillColor: [234, 88, 12], // primary-600
-          textColor: 255,
-        },
-      });
-
-      doc.save(`sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('PDF सफलतापूर्वक बन गया');
-
+      toast.success('CSV फ़ाइल डाउनलोड हो रही है');
     } catch (error) {
-      console.error('PDF Export error:', error);
-      toast.error('PDF बनाने में त्रुटि हुई');
-    } finally {
-      setExportingPdf(false);
+      console.error('Export error:', error);
+      toast.error('एक्सपोर्ट में त्रुटि हुई');
     }
   };
-
 
   const filteredSadhaks = sadhaks.filter((sadhak) =>
     sadhak.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -251,6 +188,12 @@ export default function SadhaksListPage() {
 
   const selectedEventData = events.find(e => e.id === selectedEvent);
 
+  // Calculate statistics
+  const totalSadhaks = filteredSadhaks.length;
+  const totalPlaces = Object.keys(groupedByPlace).length;
+  const maleCount = filteredSadhaks.filter(s => s.gender === 'male').length;
+  const femaleCount = filteredSadhaks.filter(s => s.gender === 'female').length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -260,225 +203,236 @@ export default function SadhaksListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <Toaster position="top-right" richColors />
+    <div className="p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          👥 साधकों की सूची
+        </h1>
+        <p className="text-gray-600">सभी साधकों का विवरण देखें, संपादित करें और प्रबंधित करें</p>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-orange-600 mb-2">
-            🙏 साधकों की सूची 🙏
-          </h1>
-          <p className="text-gray-600">सभी साधकों का विवरण देखें, संपादित करें और प्रबंधित करें</p>
-        </div>
+      {/* Filters and Actions */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Event Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              सत्संग चुनें <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedEvent || ''}
+              onChange={(e) => setSelectedEvent(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="">सभी सत्संग</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.eventName} - {event.location}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Filters and Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            {/* Event Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                सत्संग चुनें <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedEvent || ''}
-                onChange={(e) => setSelectedEvent(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          {/* Place Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              स्थान फ़िल्टर
+            </label>
+            <select
+              value={selectedPlace || ''}
+              onChange={(e) => setSelectedPlace(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="">सभी स्थान</option>
+              {places.map((place) => (
+                <option key={place.id} value={place.id}>
+                  {place.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              नाम से खोजें
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="नाम से खोजें..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Export Buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              एक्सपोर्ट
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportPDF}
+                disabled={!selectedEvent}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                <option value="">सभी सत्संग</option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.eventName} - {event.location}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Place Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                स्थान फ़िल्टर
-              </label>
-              <select
-                value={selectedPlace || ''}
-                onChange={(e) => setSelectedPlace(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                <FileText className="w-4 h-4" />
+                PDF
+              </button>
+              <button
+                onClick={handleExportCSV}
+                disabled={!selectedEvent}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                <option value="">सभी स्थान</option>
-                {places.map((place) => (
-                  <option key={place.id} value={place.id}>
-                    {place.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                नाम से खोजें
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="नाम से खोजें..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Export Buttons */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                एक्सपोर्ट
-              </label>
-              <div className="flex gap-2">
-                 <button
-                    onClick={handleExportPDF}
-                    disabled={!selectedEvent || exportingPdf}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <FileText className="w-5 h-5" />
-                    {exportingPdf ? 'बना रहा है...' : 'PDF Export'}
-                  </button>
-                <button
-                  onClick={handleExportODF}
-                  disabled={!selectedEvent}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                >
-                  <FileSpreadsheet className="w-5 h-5" />
-                  ODF Export
-                </button>
-              </div>
+                <FileText className="w-4 h-4" />
+                CSV
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Event Info Banner */}
-        {selectedEventData && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-orange-900">
-                  {selectedEventData.eventName}
-                </h3>
-                <p className="text-sm text-orange-700">
-                  📍 {selectedEventData.location} | 📅 {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} से {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-orange-600">कुल साधक</p>
-                <p className="text-3xl font-bold text-orange-900">{filteredSadhaks.length}</p>
+      {/* Event Banner */}
+      {selectedEventData && (
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{selectedEventData.eventName}</h2>
+              <div className="flex items-center gap-6 text-orange-100">
+                <span className="flex items-center gap-2">
+                  📍 {selectedEventData.location}
+                </span>
+                <span className="flex items-center gap-2">
+                  📅 {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} - {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
+                </span>
               </div>
             </div>
+            <div className="text-right">
+              <p className="text-orange-100 text-sm">कुल साधक</p>
+              <p className="text-4xl font-bold">{totalSadhaks}</p>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Stats */}
+      {/* Statistics */}
+      {selectedEvent && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">कुल साधक</p>
-            <p className="text-3xl font-bold text-orange-600">{filteredSadhaks.length}</p>
+            <p className="text-sm text-gray-600 mb-1">कुल साधक</p>
+            <p className="text-3xl font-bold text-gray-900">{totalSadhaks}</p>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">कुल स्थान</p>
-            <p className="text-3xl font-bold text-blue-600">{Object.keys(groupedByPlace).length}</p>
+            <p className="text-sm text-gray-600 mb-1">कुल स्थान</p>
+            <p className="text-3xl font-bold text-gray-900">{totalPlaces}</p>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">पुरुष</p>
-            <p className="text-3xl font-bold text-green-600">
-              {filteredSadhaks.filter(s => s.gender === 'male').length}
-            </p>
+            <p className="text-sm text-gray-600 mb-1">पुरुष</p>
+            <p className="text-3xl font-bold text-blue-600">{maleCount}</p>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-gray-600 text-sm">महिला</p>
-            <p className="text-3xl font-bold text-pink-600">
-              {filteredSadhaks.filter(s => s.gender === 'female').length}
-            </p>
+            <p className="text-sm text-gray-600 mb-1">महिला</p>
+            <p className="text-3xl font-bold text-pink-600">{femaleCount}</p>
           </div>
         </div>
+      )}
 
-        {/* Sadhaks List - Grouped by Place */}
-        {Object.entries(groupedByPlace).map(([placeName, placeSadhaks]) => (
-          <div key={placeName} className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-orange-600">📍</span>
-              {placeName}
-              <span className="text-sm font-normal text-gray-500">
-                ({placeSadhaks.length} साधक)
-              </span>
-            </h2>
+      {/* Sadhaks List - Grouped by Place */}
+      <div className="space-y-6">
+        {Object.entries(groupedByPlace).length > 0 ? (
+          Object.entries(groupedByPlace).map(([placeName, placeSadhaks]) => (
+            <div key={placeName} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Place Header */}
+              <div className="bg-gradient-to-r from-orange-50 to-orange-100 px-6 py-4 border-b border-orange-200">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  📍 {placeName}
+                  <span className="text-sm font-normal text-gray-600">
+                    ({placeSadhaks.length} साधक)
+                  </span>
+                </h3>
+              </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">क्रमांक</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">नाम</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">उम्र</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">अंतिम हरिद्वार</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">अन्य स्थान</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">दीक्षित कब और किससे</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">कार्य</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        क्रमांक
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        नाम
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        उम्र
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        अंतिम हरिद्वार
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        अन्य स्थान
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        दीक्षित
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        कार्य
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-200">
                     {placeSadhaks.map((sadhak) => (
                       <tr key={sadhak.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {sadhak.serialNumber || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {sadhak.name}
-                          {sadhak.relationship && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              ({sadhak.relationship})
-                            </span>
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {sadhak.name}
+                            {sadhak.relationship && (
+                              <span className="text-gray-500 ml-1">- ({sadhak.relationship})</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {sadhak.gender === 'male' ? '👨 पुरुष' : '👩 महिला'}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {sadhak.age || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {sadhak.isFirstEntry ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               प्रथम प्रविष्ट
                             </span>
                           ) : (
                             sadhak.lastHaridwarYear || '-'
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {sadhak.otherLocation || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {sadhak.dikshitYear ? (
-                            <div>
-                              <span className="font-medium">{sadhak.dikshitYear}</span>
-                              <span className="text-xs text-gray-500 block">
-                                ({sadhak.dikshitBy})
-                              </span>
-                            </div>
-                          ) : (
-                            '-'
-                          )}
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {sadhak.dikshitYear && `${sadhak.dikshitYear} - `}
+                          <span className="text-xs text-gray-500">{sadhak.dikshitBy}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setEditingSadhak(sadhak)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                               title="संपादित करें"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(sadhak.id, sadhak.name)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
                               title="हटाएं"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -491,12 +445,12 @@ export default function SadhaksListPage() {
                 </table>
               </div>
             </div>
-          </div>
-        ))}
-
-        {filteredSadhaks.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
-            <p className="text-gray-500 text-lg">
+          ))
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">कोई साधक नहीं मिला</h3>
+            <p className="text-gray-600">
               {selectedEvent ? 'इस सत्संग के लिए कोई साधक नहीं मिला' : 'कृपया सत्संग चुनें'}
             </p>
           </div>
