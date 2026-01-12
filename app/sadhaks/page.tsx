@@ -122,17 +122,23 @@ export default function SadhaksListPage() {
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success('PDF फ़ाइल डाउनलोड हो रही है');
+      const html = await response.text();
+      
+      // Open in new window for printing
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        // Wait for content to load, then print
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+        
+        toast.success('PDF प्रिंट विंडो खुल रही है');
+      }
     } catch (error) {
       console.error('Export error:', error);
       toast.error('एक्सपोर्ट में त्रुटि हुई');
@@ -280,6 +286,7 @@ export default function SadhaksListPage() {
                 onClick={handleExportPDF}
                 disabled={!selectedEvent}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                title="PDF में प्रिंट करें (Ctrl+P से Save as PDF)"
               >
                 <FileText className="w-4 h-4" />
                 PDF
