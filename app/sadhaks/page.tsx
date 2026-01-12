@@ -118,33 +118,53 @@ export default function SadhaksListPage() {
       return;
     }
 
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    if (!selectedEventData) return;
+
     try {
-      toast.loading('PDF तैयार हो रही है...');
+      const loadingToast = toast.loading('PDF तैयार हो रही है...');
       
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
 
-      const html = await response.text();
+      const htmlText = await response.text();
+      
+      // Create iframe to render HTML properly
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '210mm';
+      iframe.style.height = '297mm';
+      document.body.appendChild(iframe);
+      
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Failed to create iframe document');
+      
+      iframeDoc.open();
+      iframeDoc.write(htmlText);
+      iframeDoc.close();
+      
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Dynamically import html2pdf
       const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a temporary container
-      const container = document.createElement('div');
-      container.innerHTML = html;
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      document.body.appendChild(container);
+      // Generate filename: location-date.pdf
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
       
       // Configure options
       const opt = {
         margin: [15, 15, 15, 15],
-        filename: `sadhaks-list-${new Date().toISOString().split('T')[0]}.pdf`,
+        filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2,
           useCORS: true,
-          letterRendering: true
+          letterRendering: true,
+          logging: false
         },
         jsPDF: { 
           unit: 'mm', 
@@ -154,13 +174,13 @@ export default function SadhaksListPage() {
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
       
-      // Generate PDF
-      await html2pdf().set(opt).from(container).save();
+      // Generate PDF from iframe body
+      await html2pdf().set(opt).from(iframeDoc.body).save();
       
       // Cleanup
-      document.body.removeChild(container);
+      document.body.removeChild(iframe);
       
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       toast.success('PDF डाउनलोड हो रही है');
     } catch (error) {
       console.error('Export error:', error);
@@ -175,6 +195,9 @@ export default function SadhaksListPage() {
       return;
     }
 
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    if (!selectedEventData) return;
+
     try {
       const response = await fetch(`/api/export/csv?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
@@ -183,7 +206,12 @@ export default function SadhaksListPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sadhaks-list-${new Date().toISOString().split('T')[0]}.csv`;
+      
+      // Generate filename: location-date.csv
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      a.download = `${selectedEventData.location}-${dateStr}.csv`;
+      
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
