@@ -122,32 +122,53 @@ export default function SadhaksListPage() {
     if (!selectedEventData) return;
 
     try {
-      toast.loading('PDF तैयार हो रही है...');
+      const loadingToast = toast.loading('PDF तैयार हो रही है...');
       
       // Fetch HTML from API
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
       const htmlContent = await response.text();
       
-      // Open in new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast.error('कृपया पॉप-अप को अनुमति दें');
-        return;
-      }
+      // Dynamically import html2pdf
+      const html2pdf = (await import('html2pdf.js')).default;
       
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      // Generate filename: location-date.pdf
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
       
-      // Wait for content to load
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          toast.dismiss();
-          toast.success('PDF प्रिंट डायलॉग खुल गया');
-        }, 500);
+      // Create temporary container
+      const container = document.createElement('div');
+      container.innerHTML = htmlContent;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+      
+      // Configure html2pdf options
+      const opt = {
+        margin: [15, 15, 15, 15],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' 
+        }
       };
       
+      // Generate and download PDF
+      await html2pdf().set(opt).from(container).save();
+      
+      // Cleanup
+      document.body.removeChild(container);
+      
+      toast.dismiss(loadingToast);
+      toast.success('PDF डाउनलोड हो रही है');
     } catch (error) {
       console.error('Export error:', error);
       toast.dismiss();
