@@ -122,155 +122,32 @@ export default function SadhaksListPage() {
     if (!selectedEventData) return;
 
     try {
-      const loadingToast = toast.loading('PDF तैयार हो रही है...');
+      toast.loading('PDF तैयार हो रही है...');
       
-      // Dynamically import jsPDF and autoTable
-      const { jsPDF } = await import('jspdf');
-      await import('jspdf-autotable');
+      // Fetch HTML from API
+      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
+      const htmlContent = await response.text();
       
-      // Load Noto Sans Devanagari font
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // Add Noto Sans Devanagari font (you'll need to add this to public folder)
-      // For now, using default font with Unicode support
-      doc.setFont('helvetica');
+      // Open in new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('कृपया पॉप-अप को अनुमति दें');
+        return;
+      }
       
-      let yPos = 20;
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
       
-      // Header
-      doc.setFontSize(18);
-      doc.text("'श्री राम'", 105, yPos, { align: 'center' });
-      yPos += 10;
+      // Wait for content to load
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          toast.dismiss();
+          toast.success('PDF प्रिंट डायलॉग खुल गया');
+        }, 500);
+      };
       
-      doc.setFontSize(14);
-      doc.text('पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची', 105, yPos, { align: 'center' });
-      yPos += 8;
-      
-      doc.setFontSize(12);
-      doc.text('( आप जी की स्वीकृति के लिए )', 105, yPos, { align: 'center' });
-      yPos += 15;
-      
-      // Event details
-      doc.setFontSize(10);
-      const startDate = new Date(selectedEventData.startDate).toLocaleDateString('hi-IN');
-      const endDate = new Date(selectedEventData.endDate).toLocaleDateString('hi-IN');
-      
-      doc.text(`भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट`, 15, yPos);
-      doc.text(`साधना सत्संग दिनांक ${startDate} से ${endDate}`, 120, yPos);
-      yPos += 6;
-      
-      doc.text('पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट', 15, yPos);
-      doc.text(`स्थान : ${selectedEventData.location}`, 120, yPos);
-      yPos += 6;
-      
-      doc.text('दूरभाष : 0186-2224242, 9872035936', 15, yPos);
-      doc.text('ईमेल: shreeramsharnampathankot@gmail.com', 120, yPos);
-      yPos += 15;
-      
-      // Group sadhaks by place
-      const groupedByPlace: Record<string, Sadhak[]> = {};
-      sadhaks.forEach((sadhak) => {
-        if (!groupedByPlace[sadhak.placeName]) {
-          groupedByPlace[sadhak.placeName] = [];
-        }
-        groupedByPlace[sadhak.placeName].push(sadhak);
-      });
-      
-      // Sort by serial number within each place
-      Object.keys(groupedByPlace).forEach((placeName) => {
-        groupedByPlace[placeName].sort((a, b) => 
-          (a.serialNumber || 0) - (b.serialNumber || 0)
-        );
-      });
-      
-      // Add tables for each place
-      Object.entries(groupedByPlace).forEach(([placeName, placeSadhaks], index) => {
-        if (index > 0) {
-          doc.addPage();
-          yPos = 20;
-        }
-        
-        // Place header
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(placeName, 105, yPos, { align: 'center' });
-        yPos += 10;
-        
-        // Table data
-        const tableData = placeSadhaks.map((sadhak) => {
-          const displayName = sadhak.relationship 
-            ? `${sadhak.name} - (${sadhak.relationship})`
-            : sadhak.name;
-          
-          const lastHaridwar = sadhak.isFirstEntry 
-            ? 'प्रथम प्रविष्ट' 
-            : sadhak.lastHaridwarYear?.toString() || '-';
-          
-          const dikshitInfo = sadhak.dikshitYear 
-            ? `${sadhak.dikshitYear} –(${sadhak.dikshitBy})`
-            : `(${sadhak.dikshitBy})`;
-          
-          return [
-            sadhak.serialNumber?.toString() || '-',
-            displayName,
-            sadhak.age?.toString() || '-',
-            lastHaridwar,
-            sadhak.otherLocation || '-',
-            dikshitInfo
-          ];
-        });
-        
-        // Add table using autoTable
-        (doc as any).autoTable({
-          startY: yPos,
-          head: [['क्रमांक', 'नाम', 'उम्र', 'अंतिम\nहरिद्वार', 'किसी भी अन्य\nस्थान पर', 'दीक्षित कब और किससे']],
-          body: tableData,
-          theme: 'grid',
-          styles: {
-            font: 'helvetica',
-            fontSize: 9,
-            cellPadding: 3,
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1
-          },
-          headStyles: {
-            fillColor: [245, 245, 245],
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-            halign: 'center'
-          },
-          columnStyles: {
-            0: { cellWidth: 15, halign: 'center' },
-            1: { cellWidth: 45 },
-            2: { cellWidth: 15, halign: 'center' },
-            3: { cellWidth: 25, halign: 'center' },
-            4: { cellWidth: 35 },
-            5: { cellWidth: 45 }
-          },
-          margin: { left: 15, right: 15 }
-        });
-      });
-      
-      // Add footer on last page
-      doc.addPage();
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('धन्यवाद', 105, 150, { align: 'center' });
-      
-      // Generate filename: location-date.pdf
-      const startDateObj = new Date(selectedEventData.startDate);
-      const dateStr = `${startDateObj.getDate()}-${startDateObj.getMonth() + 1}-${startDateObj.getFullYear()}`;
-      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
-      
-      // Save PDF
-      doc.save(filename);
-      
-      toast.dismiss(loadingToast);
-      toast.success('PDF डाउनलोड हो रही है');
     } catch (error) {
       console.error('Export error:', error);
       toast.dismiss();
