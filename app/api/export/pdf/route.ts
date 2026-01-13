@@ -67,40 +67,42 @@ export async function GET(request: Request) {
   <style>
     @page {
       size: A4;
-      margin: 20mm;
+      margin: 15mm;
     }
     
     body {
       font-family: 'Noto Sans Devanagari', Arial, sans-serif;
-      font-size: 12pt;
-      line-height: 1.4;
+      font-size: 10pt;
+      line-height: 1.3;
       color: #000;
+      margin: 0;
+      padding: 0;
     }
     
     .header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     }
     
     .header h1 {
-      font-size: 18pt;
-      margin: 10px 0;
-    }
-    
-    .header h2 {
       font-size: 16pt;
-      margin: 10px 0;
-    }
-    
-    .header p {
-      font-size: 12pt;
       margin: 5px 0;
     }
     
+    .header h2 {
+      font-size: 13pt;
+      margin: 5px 0;
+    }
+    
+    .header p {
+      font-size: 11pt;
+      margin: 3px 0;
+    }
+    
     .event-details {
-      font-size: 10pt;
-      margin-bottom: 20px;
-      line-height: 1.6;
+      font-size: 9pt;
+      margin-bottom: 15px;
+      line-height: 1.4;
     }
     
     .event-details table {
@@ -109,7 +111,7 @@ export async function GET(request: Request) {
     }
     
     .event-details td {
-      padding: 3px 0;
+      padding: 2px 0;
     }
     
     .event-details td:first-child {
@@ -117,34 +119,32 @@ export async function GET(request: Request) {
     }
     
     .place-section {
-      page-break-before: always;
-      margin-top: 30px;
+      margin-top: 20px;
     }
     
     .place-section:first-of-type {
-      page-break-before: auto;
       margin-top: 0;
     }
     
     .place-header {
       text-align: center;
-      font-size: 16pt;
+      font-size: 14pt;
       font-weight: bold;
-      margin: 20px 0;
+      margin: 12px 0 8px 0;
       text-decoration: underline;
     }
     
     table.data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 30px;
-      font-size: 10pt;
+      margin-bottom: 15px;
+      font-size: 9pt;
     }
     
     table.data-table th,
     table.data-table td {
       border: 1px solid #000;
-      padding: 8px 5px;
+      padding: 4px 3px;
       text-align: left;
     }
     
@@ -152,25 +152,28 @@ export async function GET(request: Request) {
       background-color: #f5f5f5;
       font-weight: bold;
       text-align: center;
+      font-size: 9pt;
+      line-height: 1.2;
     }
     
     table.data-table td:first-child {
       text-align: center;
-      width: 8%;
+      width: 7%;
     }
     
     table.data-table td:nth-child(2) {
-      width: 22%;
+      width: 23%;
     }
     
     table.data-table td:nth-child(3) {
       text-align: center;
-      width: 8%;
+      width: 7%;
     }
     
     table.data-table td:nth-child(4) {
       text-align: center;
-      width: 12%;
+      width: 11%;
+      font-size: 8pt;
     }
     
     table.data-table td:nth-child(5) {
@@ -178,21 +181,24 @@ export async function GET(request: Request) {
     }
     
     table.data-table td:nth-child(6) {
-      width: 32%;
+      width: 34%;
     }
     
     .footer {
-      page-break-before: always;
       text-align: center;
-      font-size: 16pt;
+      font-size: 15pt;
       font-weight: bold;
-      margin-top: 100px;
+      margin-top: 30px;
     }
     
     @media print {
       body {
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
+      }
+      
+      .place-section {
+        page-break-inside: avoid;
       }
     }
   </style>
