@@ -10,12 +10,22 @@ export async function GET(request: Request) {
 
     console.log('GET /api/events - eventType:', eventType);
 
+    // Map frontend event types to database event types
+    let dbEventType = eventType;
+    if (eventType === 'khula') {
+      dbEventType = 'khule_satsang';
+    } else if (eventType === 'sadhna') {
+      dbEventType = 'sadhna';
+    }
+
+    console.log('Mapped to dbEventType:', dbEventType);
+
     let query = db.select().from(satsangEvents).orderBy(desc(satsangEvents.startDate));
 
-    if (eventType) {
+    if (dbEventType) {
       query = query.where(
         and(
-          eq(satsangEvents.eventType, eventType),
+          eq(satsangEvents.eventType, dbEventType),
           eq(satsangEvents.isActive, true)
         )
       );
