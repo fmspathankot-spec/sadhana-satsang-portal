@@ -122,159 +122,37 @@ export default function SadhaksListPage() {
     if (!selectedEventData) return;
 
     try {
-      const loadingToast = toast.loading('PDF तैयार हो रही है...');
+      toast.loading('PDF तैयार हो रही है...');
       
-      // Dynamically import jsPDF and autoTable
-      const { default: jsPDF } = await import('jspdf');
-      await import('jspdf-autotable');
-
-      // Fetch sadhaks data
-      const response = await fetch(`/api/sadhaks?eventId=${selectedEvent}`);
-      const sadhaksList: Sadhak[] = await response.json();
-
-      // Group by place
-      const groupedByPlace: Record<string, Sadhak[]> = {};
-      sadhaksList.forEach((sadhak) => {
-        if (!groupedByPlace[sadhak.placeName]) {
-          groupedByPlace[sadhak.placeName] = [];
-        }
-        groupedByPlace[sadhak.placeName].push(sadhak);
-      });
-
-      // Create PDF
-      const doc = new jsPDF('p', 'mm', 'a4') as any;
-
-      // Add Noto Sans Devanagari font support
-      doc.setFont('helvetica');
+      // Fetch HTML from API
+      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
+      const htmlContent = await response.text();
       
-      // Format dates
-      const startDate = new Date(selectedEventData.startDate).toLocaleDateString('hi-IN', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-      const endDate = new Date(selectedEventData.endDate).toLocaleDateString('hi-IN', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('कृपया पॉप-अप को अनुमति दें');
+        return;
+      }
 
-      let yPos = 15;
+      // Write HTML content
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
 
-      // Header
-      doc.setFontSize(16);
-      doc.text("'श्री राम'", 105, yPos, { align: 'center' });
-      yPos += 8;
+      // Wait for content to load
+      printWindow.onload = () => {
+        // Trigger print dialog
+        printWindow.print();
+        
+        // Close window after printing (user can cancel)
+        printWindow.onafterprint = () => {
+          printWindow.close();
+        };
+      };
 
-      doc.setFontSize(13);
-      doc.text('पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची', 105, yPos, { align: 'center' });
-      yPos += 7;
-
-      doc.setFontSize(11);
-      doc.text('( आप जी की स्वीकृति के लिए )', 105, yPos, { align: 'center' });
-      yPos += 10;
-
-      // Event details
-      doc.setFontSize(9);
-      doc.text(`भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट`, 15, yPos);
-      doc.text(`साधना सत्संग दिनांक ${startDate} से ${endDate}`, 120, yPos);
-      yPos += 5;
-
-      doc.text('पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट', 15, yPos);
-      doc.text(`स्थान : ${selectedEventData.location}`, 120, yPos);
-      yPos += 5;
-
-      doc.text('दूरभाष : 0186-2224242, 9872035936', 15, yPos);
-      doc.text('ईमेल: shreeramsharnampathankot@gmail.com', 120, yPos);
-      yPos += 10;
-
-      // Add tables for each place
-      Object.entries(groupedByPlace).forEach(([placeName, sadhaksList], index) => {
-        // Place header
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(placeName, 105, yPos, { align: 'center' });
-        yPos += 8;
-
-        // Prepare table data
-        const tableData = sadhaksList.map((sadhak) => {
-          let displayName = sadhak.name;
-          if (sadhak.relationship) {
-            displayName += ` - (${sadhak.relationship})`;
-          }
-
-          const lastHaridwar = sadhak.isFirstEntry 
-            ? 'प्रथम प्रविष्ट' 
-            : sadhak.lastHaridwarYear?.toString() || '-';
-
-          const dikshitInfo = sadhak.dikshitYear 
-            ? `${sadhak.dikshitYear} –(${sadhak.dikshitBy})`
-            : `(${sadhak.dikshitBy})`;
-
-          return [
-            sadhak.serialNumber || '-',
-            displayName,
-            sadhak.age || '-',
-            lastHaridwar,
-            sadhak.otherLocation || '-',
-            dikshitInfo
-          ];
-        });
-
-        // Add table
-        doc.autoTable({
-          startY: yPos,
-          head: [['क्रमांक', 'नाम', 'उम्र', 'अंतिम हरिद्वार', 'किसी भी अन्य स्थान पर', 'दीक्षित कब और किससे']],
-          body: tableData,
-          theme: 'grid',
-          styles: {
-            font: 'helvetica',
-            fontSize: 9,
-            cellPadding: 2,
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1,
-          },
-          headStyles: {
-            fillColor: [245, 245, 245],
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-            halign: 'center',
-          },
-          columnStyles: {
-            0: { halign: 'center', cellWidth: 15 },
-            1: { cellWidth: 45 },
-            2: { halign: 'center', cellWidth: 15 },
-            3: { halign: 'center', cellWidth: 25 },
-            4: { cellWidth: 35 },
-            5: { cellWidth: 55 },
-          },
-          margin: { left: 15, right: 15 },
-        });
-
-        yPos = (doc as any).lastAutoTable.finalY + 10;
-
-        // Add new page if needed (except for last place)
-        if (index < Object.keys(groupedByPlace).length - 1 && yPos > 250) {
-          doc.addPage();
-          yPos = 15;
-        }
-      });
-
-      // Footer
-      doc.setFontSize(15);
-      doc.setFont('helvetica', 'bold');
-      doc.text('धन्यवाद', 105, yPos + 10, { align: 'center' });
-
-      // Generate filename: location-date.pdf
-      const startDateObj = new Date(selectedEventData.startDate);
-      const dateStr = `${startDateObj.getDate()}-${startDateObj.getMonth() + 1}-${startDateObj.getFullYear()}`;
-      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
-
-      // Save PDF
-      doc.save(filename);
-
-      toast.dismiss(loadingToast);
-      toast.success('PDF डाउनलोड हो रही है');
+      toast.dismiss();
+      toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
     } catch (error) {
       console.error('Export error:', error);
       toast.dismiss();
