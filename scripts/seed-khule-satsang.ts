@@ -1,20 +1,10 @@
-// Load environment variables using Node.js 20+ built-in method
-import { resolve } from 'path';
-
-// Load .env file
-try {
-  process.loadEnvFile(resolve(__dirname, '../.env'));
-} catch (error) {
-  console.error('⚠️  Warning: Could not load .env file. Make sure DATABASE_URL is set.');
-}
-
+// Environment variables are already loaded by run-seed.js wrapper
 import { db } from '../db';
 import { satsangEvents } from '../db/schema';
 import { sql } from 'drizzle-orm';
 
 async function seedKhuleSatsang() {
   console.log('🌱 Seeding Khule Satsang 2026 data...');
-  console.log(`📊 DATABASE_URL: ${process.env.DATABASE_URL ? '✅ Set' : '❌ Not set'}`);
 
   try {
     const khuleSatsangData = [
