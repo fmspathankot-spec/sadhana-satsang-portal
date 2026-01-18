@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { satsangEvents } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +20,8 @@ export async function GET(request: Request) {
 
     console.log('Mapped to dbEventType:', dbEventType);
 
-    let query = db.select().from(satsangEvents).orderBy(desc(satsangEvents.startDate));
+    // Sort by start date in ascending order (oldest/earliest first)
+    let query = db.select().from(satsangEvents).orderBy(asc(satsangEvents.startDate));
 
     if (dbEventType) {
       query = query.where(
