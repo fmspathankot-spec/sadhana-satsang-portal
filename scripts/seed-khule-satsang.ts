@@ -1,7 +1,7 @@
 // Environment variables are already loaded by run-seed.js wrapper
 import { db } from '../db';
 import { satsangEvents } from '../db/schema';
-import { sql } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 
 async function seedKhuleSatsang() {
   console.log('🌱 Seeding Khule Satsang 2026 data...');
@@ -143,9 +143,13 @@ async function seedKhuleSatsang() {
 
     console.log('\n✅ Successfully seeded all 40 Khule Satsang events!');
     
-    // Verify
-    const count = await db.execute(sql`SELECT COUNT(*) as count FROM satsang_events WHERE event_type = 'khule_satsang'`);
-    console.log(`\n📊 Total Khule Satsang events in database: ${count.rows[0].count}`);
+    // Verify using proper Drizzle ORM query
+    const result = await db
+      .select({ count: count() })
+      .from(satsangEvents)
+      .where(eq(satsangEvents.eventType, 'khule_satsang'));
+    
+    console.log(`\n📊 Total Khule Satsang events in database: ${result[0].count}`);
     
   } catch (error) {
     console.error('❌ Error seeding data:', error);
