@@ -12,7 +12,7 @@
     "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "tsx db/migrate.ts",
-    "db:seed-khule": "tsx scripts/seed-khule-satsang.ts"
+    "db:seed-khule": "node -r dotenv/config scripts/run-seed.js"
   },
   "dependencies": {
     "next": "15.1.3",
