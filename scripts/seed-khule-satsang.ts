@@ -1,3 +1,10 @@
+// Load environment variables first
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load .env from project root
+config({ path: resolve(__dirname, '../.env') });
+
 import { db } from '../db';
 import { satsangEvents } from '../db/schema';
 import { sql } from 'drizzle-orm';
