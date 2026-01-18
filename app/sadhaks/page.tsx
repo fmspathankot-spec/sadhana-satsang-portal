@@ -124,49 +124,155 @@ export default function SadhaksListPage() {
     try {
       const loadingToast = toast.loading('PDF तैयार हो रही है...');
       
-      // Fetch HTML from API
-      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
-      if (!response.ok) throw new Error('Export failed');
-      const htmlContent = await response.text();
-      
-      // Dynamically import html2pdf
-      const html2pdf = (await import('html2pdf.js')).default;
-      
-      // Generate filename: location-date.pdf
-      const startDate = new Date(selectedEventData.startDate);
-      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
-      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
-      
-      // Create temporary container
-      const container = document.createElement('div');
-      container.innerHTML = htmlContent;
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      document.body.appendChild(container);
-      
-      // Configure html2pdf options
-      const opt = {
-        margin: [15, 15, 15, 15],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          letterRendering: true
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' 
+      // Dynamically import jsPDF and autoTable
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+
+      // Fetch sadhaks data
+      const response = await fetch(`/api/sadhaks?eventId=${selectedEvent}`);
+      const sadhaksList: Sadhak[] = await response.json();
+
+      // Group by place
+      const groupedByPlace: Record<string, Sadhak[]> = {};
+      sadhaksList.forEach((sadhak) => {
+        if (!groupedByPlace[sadhak.placeName]) {
+          groupedByPlace[sadhak.placeName] = [];
         }
-      };
+        groupedByPlace[sadhak.placeName].push(sadhak);
+      });
+
+      // Create PDF
+      const doc = new jsPDF('p', 'mm', 'a4') as any;
+
+      // Add Noto Sans Devanagari font support
+      doc.setFont('helvetica');
       
-      // Generate and download PDF
-      await html2pdf().set(opt).from(container).save();
-      
-      // Cleanup
-      document.body.removeChild(container);
-      
+      // Format dates
+      const startDate = new Date(selectedEventData.startDate).toLocaleDateString('hi-IN', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const endDate = new Date(selectedEventData.endDate).toLocaleDateString('hi-IN', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      let yPos = 15;
+
+      // Header
+      doc.setFontSize(16);
+      doc.text("'श्री राम'", 105, yPos, { align: 'center' });
+      yPos += 8;
+
+      doc.setFontSize(13);
+      doc.text('पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची', 105, yPos, { align: 'center' });
+      yPos += 7;
+
+      doc.setFontSize(11);
+      doc.text('( आप जी की स्वीकृति के लिए )', 105, yPos, { align: 'center' });
+      yPos += 10;
+
+      // Event details
+      doc.setFontSize(9);
+      doc.text(`भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट`, 15, yPos);
+      doc.text(`साधना सत्संग दिनांक ${startDate} से ${endDate}`, 120, yPos);
+      yPos += 5;
+
+      doc.text('पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट', 15, yPos);
+      doc.text(`स्थान : ${selectedEventData.location}`, 120, yPos);
+      yPos += 5;
+
+      doc.text('दूरभाष : 0186-2224242, 9872035936', 15, yPos);
+      doc.text('ईमेल: shreeramsharnampathankot@gmail.com', 120, yPos);
+      yPos += 10;
+
+      // Add tables for each place
+      Object.entries(groupedByPlace).forEach(([placeName, sadhaksList], index) => {
+        // Place header
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(placeName, 105, yPos, { align: 'center' });
+        yPos += 8;
+
+        // Prepare table data
+        const tableData = sadhaksList.map((sadhak) => {
+          let displayName = sadhak.name;
+          if (sadhak.relationship) {
+            displayName += ` - (${sadhak.relationship})`;
+          }
+
+          const lastHaridwar = sadhak.isFirstEntry 
+            ? 'प्रथम प्रविष्ट' 
+            : sadhak.lastHaridwarYear?.toString() || '-';
+
+          const dikshitInfo = sadhak.dikshitYear 
+            ? `${sadhak.dikshitYear} –(${sadhak.dikshitBy})`
+            : `(${sadhak.dikshitBy})`;
+
+          return [
+            sadhak.serialNumber || '-',
+            displayName,
+            sadhak.age || '-',
+            lastHaridwar,
+            sadhak.otherLocation || '-',
+            dikshitInfo
+          ];
+        });
+
+        // Add table
+        doc.autoTable({
+          startY: yPos,
+          head: [['क्रमांक', 'नाम', 'उम्र', 'अंतिम हरिद्वार', 'किसी भी अन्य स्थान पर', 'दीक्षित कब और किससे']],
+          body: tableData,
+          theme: 'grid',
+          styles: {
+            font: 'helvetica',
+            fontSize: 9,
+            cellPadding: 2,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1,
+          },
+          headStyles: {
+            fillColor: [245, 245, 245],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 15 },
+            1: { cellWidth: 45 },
+            2: { halign: 'center', cellWidth: 15 },
+            3: { halign: 'center', cellWidth: 25 },
+            4: { cellWidth: 35 },
+            5: { cellWidth: 55 },
+          },
+          margin: { left: 15, right: 15 },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+
+        // Add new page if needed (except for last place)
+        if (index < Object.keys(groupedByPlace).length - 1 && yPos > 250) {
+          doc.addPage();
+          yPos = 15;
+        }
+      });
+
+      // Footer
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('धन्यवाद', 105, yPos + 10, { align: 'center' });
+
+      // Generate filename: location-date.pdf
+      const startDateObj = new Date(selectedEventData.startDate);
+      const dateStr = `${startDateObj.getDate()}-${startDateObj.getMonth() + 1}-${startDateObj.getFullYear()}`;
+      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
+
+      // Save PDF
+      doc.save(filename);
+
       toast.dismiss(loadingToast);
       toast.success('PDF डाउनलोड हो रही है');
     } catch (error) {
@@ -349,136 +455,144 @@ export default function SadhaksListPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold mb-2">{selectedEventData.eventName}</h2>
-              <div className="flex items-center gap-6 text-orange-100">
-                <span className="flex items-center gap-2">
-                  📍 {selectedEventData.location}
-                </span>
-                <span className="flex items-center gap-2">
-                  📅 {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} - {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
-                </span>
-              </div>
+              <p className="text-orange-100">
+                📍 {selectedEventData.location} | 📅{' '}
+                {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} -{' '}
+                {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
+              </p>
             </div>
             <div className="text-right">
-              <p className="text-orange-100 text-sm">कुल साधक</p>
-              <p className="text-4xl font-bold">{totalSadhaks}</p>
+              <div className="text-3xl font-bold">{totalSadhaks}</div>
+              <div className="text-orange-100">कुल साधक</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Statistics */}
+      {/* Statistics Cards */}
       {selectedEvent && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-sm text-gray-600 mb-1">कुल साधक</p>
-            <p className="text-3xl font-bold text-gray-900">{totalSadhaks}</p>
+            <div className="text-2xl font-bold text-orange-600">{totalSadhaks}</div>
+            <div className="text-sm text-gray-600">कुल साधक</div>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-sm text-gray-600 mb-1">कुल स्थान</p>
-            <p className="text-3xl font-bold text-gray-900">{totalPlaces}</p>
+            <div className="text-2xl font-bold text-blue-600">{totalPlaces}</div>
+            <div className="text-sm text-gray-600">कुल स्थान</div>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-sm text-gray-600 mb-1">पुरुष</p>
-            <p className="text-3xl font-bold text-blue-600">{maleCount}</p>
+            <div className="text-2xl font-bold text-green-600">{maleCount}</div>
+            <div className="text-sm text-gray-600">पुरुष</div>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <p className="text-sm text-gray-600 mb-1">महिला</p>
-            <p className="text-3xl font-bold text-pink-600">{femaleCount}</p>
+            <div className="text-2xl font-bold text-pink-600">{femaleCount}</div>
+            <div className="text-sm text-gray-600">महिला</div>
           </div>
         </div>
       )}
 
-      {/* Sadhaks List - Grouped by Place */}
-      <div className="space-y-6">
-        {Object.entries(groupedByPlace).length > 0 ? (
-          Object.entries(groupedByPlace).map(([placeName, placeSadhaks]) => (
+      {/* Sadhaks List */}
+      {Object.keys(groupedByPlace).length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <div className="text-6xl mb-4">📋</div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">कोई साधक नहीं मिला</h3>
+          <p className="text-gray-600">
+            {selectedEvent 
+              ? 'इस सत्संग के लिए अभी तक कोई साधक पंजीकृत नहीं हुआ है।'
+              : 'कृपया सत्संग चुनें।'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedByPlace).map(([placeName, sadhaksList]) => (
             <div key={placeName} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {/* Place Header */}
-              <div className="bg-gradient-to-r from-orange-50 to-orange-100 px-6 py-4 border-b border-orange-200">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  📍 {placeName}
-                  <span className="text-sm font-normal text-gray-600">
-                    ({placeSadhaks.length} साधक)
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+                <h3 className="text-xl font-bold text-white flex items-center justify-between">
+                  <span>📍 {placeName}</span>
+                  <span className="text-sm font-normal bg-white/20 px-3 py-1 rounded-full">
+                    {sadhaksList.length} साधक
                   </span>
                 </h3>
               </div>
 
-              {/* Table */}
+              {/* Sadhaks Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         क्रमांक
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         नाम
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        लिंग
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         उम्र
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         अंतिम हरिद्वार
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         अन्य स्थान
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         दीक्षित
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        कार्य
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        कार्रवाई
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {placeSadhaks.map((sadhak) => (
+                  <tbody className="divide-y divide-gray-200">
+                    {sadhaksList.map((sadhak) => (
                       <tr key={sadhak.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           {sadhak.serialNumber || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {sadhak.name}
-                            {sadhak.relationship && (
-                              <span className="text-gray-500 ml-1">- ({sadhak.relationship})</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {sadhak.gender === 'male' ? '👨 पुरुष' : '👩 महिला'}
-                          </div>
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{sadhak.name}</div>
+                          {sadhak.relationship && (
+                            <div className="text-xs text-gray-500">({sadhak.relationship})</div>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {sadhak.gender === 'male' ? '👨 पुरुष' : sadhak.gender === 'female' ? '👩 महिला' : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           {sadhak.age || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           {sadhak.isFirstEntry ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               प्रथम प्रविष्ट
                             </span>
                           ) : (
                             sadhak.lastHaridwarYear || '-'
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           {sadhak.otherLocation || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           {sadhak.dikshitYear && `${sadhak.dikshitYear} - `}
-                          <span className="text-xs text-gray-500">{sadhak.dikshitBy}</span>
+                          {sadhak.dikshitBy}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td className="px-4 py-3 text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setEditingSadhak(sadhak)}
-                              className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="text-blue-600 hover:text-blue-900 transition-colors"
                               title="संपादित करें"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(sadhak.id, sadhak.name)}
-                              className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                              className="text-red-600 hover:text-red-900 transition-colors"
                               title="हटाएं"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -491,17 +605,9 @@ export default function SadhaksListPage() {
                 </table>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">कोई साधक नहीं मिला</h3>
-            <p className="text-gray-600">
-              {selectedEvent ? 'इस सत्संग के लिए कोई साधक नहीं मिला' : 'कृपया सत्संग चुनें'}
-            </p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editingSadhak && (
@@ -509,11 +615,13 @@ export default function SadhaksListPage() {
           sadhak={editingSadhak}
           onClose={() => setEditingSadhak(null)}
           onSuccess={() => {
-            fetchSadhaks();
             setEditingSadhak(null);
+            fetchSadhaks();
           }}
         />
       )}
+
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
