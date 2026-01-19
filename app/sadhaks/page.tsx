@@ -129,30 +129,54 @@ export default function SadhaksListPage() {
       if (!response.ok) throw new Error('Export failed');
       const htmlContent = await response.text();
       
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast.error('कृपया पॉप-अप को अनुमति दें');
+      // Generate filename: location-date.pdf
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
+      
+      // Create iframe for printing
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        toast.error('PDF तैयार करने में त्रुटि');
         return;
       }
 
-      // Write HTML content
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      // Write HTML content with title for filename
+      iframeDoc.open();
+      iframeDoc.write(htmlContent.replace('<title>साधकों की सूची</title>', `<title>${filename}</title>`));
+      iframeDoc.close();
 
       // Wait for content to load
-      printWindow.onload = () => {
-        // Trigger print dialog
-        printWindow.print();
-        
-        // Close window after printing (user can cancel)
-        printWindow.onafterprint = () => {
-          printWindow.close();
-        };
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            // Trigger print dialog
+            iframe.contentWindow?.print();
+            
+            // Remove iframe after a delay
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+            
+            toast.dismiss();
+            toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
+          } catch (error) {
+            console.error('Print error:', error);
+            toast.dismiss();
+            toast.error('प्रिंट करने में त्रुटि');
+            document.body.removeChild(iframe);
+          }
+        }, 500);
       };
-
-      toast.dismiss();
-      toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
     } catch (error) {
       console.error('Export error:', error);
       toast.dismiss();
