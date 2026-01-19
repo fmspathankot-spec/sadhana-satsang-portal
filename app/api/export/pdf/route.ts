@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { sadhaks, satsangEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import puppeteer from 'puppeteer';
 
 export async function GET(request: Request) {
   try {
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
     // Determine event type text
     const eventTypeText = event.eventType === 'sadhana' ? 'साधना' : 'खुला';
 
-    // Create HTML content
+    // Create HTML content (NO filename/datetime in PDF)
     let htmlContent = `
 <!DOCTYPE html>
 <html lang="hi">
@@ -297,15 +298,43 @@ export async function GET(request: Request) {
 </html>
 `;
 
-    return new NextResponse(htmlContent, {
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '15mm',
+        right: '15mm',
+        bottom: '15mm',
+        left: '15mm'
+      }
+    });
+    
+    await browser.close();
+
+    // Generate filename: location-date.pdf
+    const startDateObj = new Date(event.startDate);
+    const dateStr = `${startDateObj.getDate()}-${startDateObj.getMonth() + 1}-${startDateObj.getFullYear()}`;
+    const filename = `${event.location}-${dateStr}.pdf`;
+
+    return new NextResponse(pdfBuffer, {
       headers: {
-        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
       },
     });
   } catch (error) {
-    console.error('Error generating HTML:', error);
+    console.error('Error generating PDF:', error);
     return NextResponse.json(
-      { error: 'Failed to generate HTML', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to generate PDF', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
