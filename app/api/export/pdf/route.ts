@@ -56,6 +56,9 @@ export async function GET(request: Request) {
       year: 'numeric'
     });
 
+    // Determine event type text
+    const eventTypeText = event.eventType === 'sadhana' ? 'साधना' : 'खुला';
+
     // Create HTML content
     let htmlContent = `
 <!DOCTYPE html>
@@ -185,10 +188,11 @@ export async function GET(request: Request) {
     }
     
     .footer {
-      text-align: center;
+      text-align: right;
       font-size: 15pt;
       font-weight: bold;
       margin-top: 30px;
+      padding-right: 20px;
     }
     
     @media print {
@@ -206,7 +210,7 @@ export async function GET(request: Request) {
 <body>
   <div class="header">
     <h1>'श्री राम'</h1>
-    <h2>पठानकोट से साधना सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची</h2>
+    <h2>पठानकोट से ${eventTypeText} सत्संग में सम्मिलित होने के इच्छुक साधकों की सूची</h2>
     <p>( आप जी की स्वीकृति के लिए )</p>
   </div>
   
@@ -214,7 +218,7 @@ export async function GET(request: Request) {
     <table>
       <tr>
         <td>भेजने वाले स्थान का नाम : 'श्रीरामशरणम्' पठानकोट</td>
-        <td>साधना सत्संग दिनांक ${startDate} से ${endDate}</td>
+        <td>${eventTypeText} सत्संग दिनांक ${startDate} से ${endDate}</td>
       </tr>
       <tr>
         <td>पता : डॉ० राजन मैनी, काली माता मंदिर रोड, पठानकोट</td>
