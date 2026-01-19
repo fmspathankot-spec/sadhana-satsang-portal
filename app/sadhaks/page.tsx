@@ -122,61 +122,35 @@ export default function SadhaksListPage() {
     if (!selectedEventData) return;
 
     try {
-      toast.loading('PDF तैयार हो रही है...');
+      toast.loading('PDF डाउनलोड हो रही है...');
       
-      // Fetch HTML from API
+      // Direct download from API
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
-      const htmlContent = await response.text();
       
-      // Generate filename: location-date.pdf
-      const startDate = new Date(selectedEventData.startDate);
-      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
-      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       
-      // Create iframe for printing
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        toast.error('PDF तैयार करने में त्रुटि');
-        return;
+      // Filename from Content-Disposition header or generate
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'sadhaks.pdf';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
+        }
       }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-      // Write HTML content with title for filename
-      iframeDoc.open();
-      iframeDoc.write(htmlContent.replace('<title>साधकों की सूची</title>', `<title>${filename}</title>`));
-      iframeDoc.close();
-
-      // Wait for content to load
-      iframe.onload = () => {
-        setTimeout(() => {
-          try {
-            // Trigger print dialog
-            iframe.contentWindow?.print();
-            
-            // Remove iframe after a delay
-            setTimeout(() => {
-              document.body.removeChild(iframe);
-            }, 1000);
-            
-            toast.dismiss();
-            toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
-          } catch (error) {
-            console.error('Print error:', error);
-            toast.dismiss();
-            toast.error('प्रिंट करने में त्रुटि');
-            document.body.removeChild(iframe);
-          }
-        }, 500);
-      };
+      toast.dismiss();
+      toast.success('PDF सफलतापूर्वक डाउनलोड हो गई');
     } catch (error) {
       console.error('Export error:', error);
       toast.dismiss();
