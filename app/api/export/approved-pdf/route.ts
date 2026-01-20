@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { sadhaks, events } from '@/db/schema';
+import { sadhaks, satsangEvents } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import puppeteer from 'puppeteer';
 
@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
     // Fetch event details
     const [eventData] = await db
       .select()
-      .from(events)
-      .where(eq(events.id, parseInt(eventId)));
+      .from(satsangEvents)
+      .where(eq(satsangEvents.id, parseInt(eventId)));
 
     if (!eventData) {
       return NextResponse.json(
