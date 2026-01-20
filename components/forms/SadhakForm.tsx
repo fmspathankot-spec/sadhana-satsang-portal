@@ -146,7 +146,10 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
         isFirstEntry: false,
       });
       
-      onSuccess();
+      // Wrap onSuccess in setTimeout to avoid setState during render
+      setTimeout(() => {
+        onSuccess();
+      }, 0);
     } catch (error) {
       console.error('Submit error:', error);
       toast.error(error instanceof Error ? error.message : 'साधक जोड़ने में त्रुटि हुई');
