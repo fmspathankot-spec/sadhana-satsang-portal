@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, MapPin, Plus, ChevronRight, Check } from 'lucide-react';
+import { Calendar, MapPin, Plus, ChevronRight, Check, CheckCircle, XCircle, Filter } from 'lucide-react';
 import SadhakForm from '@/components/forms/SadhakForm';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 
 interface Event {
   id: number;
@@ -33,6 +33,7 @@ interface Sadhak {
   dikshitYear: number | null;
   dikshitBy: string;
   isFirstEntry: boolean;
+  isApproved: boolean;
   relationship: string | null;
   placeName: string;
 }
@@ -48,6 +49,7 @@ export default function EventRegistrationPage() {
   const [selectedPlace, setSelectedPlace] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
 
   useEffect(() => {
     fetchPlaces();
@@ -99,6 +101,32 @@ export default function EventRegistrationPage() {
     }
   };
 
+  const handleApprove = async (sadhakId: number, isApproved: boolean) => {
+    try {
+      const response = await fetch(`/api/sadhaks/${sadhakId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isApproved }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update approval');
+
+      // Update local state
+      setSadhaks(sadhaks.map(s => 
+        s.id === sadhakId ? { ...s, isApproved } : s
+      ));
+
+      setTimeout(() => {
+        toast.success(isApproved ? 'साधक स्वीकृत किया गया ✅' : 'साधक अस्वीकृत किया गया ❌');
+      }, 0);
+    } catch (error) {
+      console.error('Error updating approval:', error);
+      setTimeout(() => {
+        toast.error('अनुमोदन अपडेट करने में त्रुटि');
+      }, 0);
+    }
+  };
+
   // Memoize the onSuccess callback to avoid re-creating it on every render
   const handleSadhakSuccess = useCallback(() => {
     fetchSadhaks();
@@ -107,6 +135,14 @@ export default function EventRegistrationPage() {
 
   const selectedEventData = events.find(e => e.id === selectedEvent);
   const selectedPlaceData = places.find(p => p.id === selectedPlace);
+
+  // Filter sadhaks based on approval status
+  const filteredSadhaks = sadhaks.filter(sadhak => {
+    if (approvalFilter === 'all') return true;
+    if (approvalFilter === 'approved') return sadhak.isApproved;
+    if (approvalFilter === 'pending') return !sadhak.isApproved;
+    return true;
+  });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -379,21 +415,63 @@ export default function EventRegistrationPage() {
             {/* Sadhaks List */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  साधकों की सूची ({sadhaks.length})
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    साधकों की सूची ({filteredSadhaks.length})
+                  </h3>
+                  <Filter className="w-5 h-5 text-gray-600" />
+                </div>
+
+                {/* Filter Buttons */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setApprovalFilter('all')}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                      approvalFilter === 'all'
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    सभी ({sadhaks.length})
+                  </button>
+                  <button
+                    onClick={() => setApprovalFilter('approved')}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                      approvalFilter === 'approved'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    स्वीकृत ({sadhaks.filter(s => s.isApproved).length})
+                  </button>
+                  <button
+                    onClick={() => setApprovalFilter('pending')}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                      approvalFilter === 'pending'
+                        ? 'bg-yellow-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    लंबित ({sadhaks.filter(s => !s.isApproved).length})
+                  </button>
+                </div>
+
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {sadhaks.length === 0 ? (
+                  {filteredSadhaks.length === 0 ? (
                     <p className="text-gray-500 text-center py-8 text-sm">
                       कोई साधक नहीं मिला
                     </p>
                   ) : (
-                    sadhaks.map((sadhak) => (
+                    filteredSadhaks.map((sadhak) => (
                       <div
                         key={sadhak.id}
-                        className="p-4 border border-gray-200 rounded-lg hover:bg-orange-50 transition-colors"
+                        className={`p-4 border-2 rounded-lg transition-colors ${
+                          sadhak.isApproved
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-gray-200 bg-white hover:bg-orange-50'
+                        }`}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <p className="font-semibold text-gray-900">
                               {sadhak.serialNumber && `${sadhak.serialNumber}. `}
@@ -407,12 +485,33 @@ export default function EventRegistrationPage() {
                               {sadhak.age && <p>उम्र: {sadhak.age}</p>}
                               {sadhak.phone && <p>📞 {sadhak.phone}</p>}
                               {sadhak.isFirstEntry && (
-                                <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                                <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
                                   प्रथम प्रविष्ट
                                 </span>
                               )}
                             </div>
                           </div>
+                        </div>
+
+                        {/* Approval Buttons */}
+                        <div className="flex gap-2 mt-3">
+                          {!sadhak.isApproved ? (
+                            <button
+                              onClick={() => handleApprove(sadhak.id, true)}
+                              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              स्वीकृत करें
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleApprove(sadhak.id, false)}
+                              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              अस्वीकृत करें
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
