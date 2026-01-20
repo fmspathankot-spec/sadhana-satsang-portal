@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 
 const sadhakSchema = z.object({
-  placeId: z.number().min(1, 'स्थान चुनना आवश्यक है'),
   eventId: z.number().min(1, 'सत्संग चुनना आवश्यक है'),
   placeName: z.string().min(2, 'स्थान का नाम आवश्यक है'),
   name: z.string().min(2, 'नाम आवश्यक है'),
@@ -26,7 +25,7 @@ type SadhakFormData = z.infer<typeof sadhakSchema>;
 
 interface SadhakFormProps {
   eventId: number;
-  placeId: number;
+  placeId: number; // Not used anymore, kept for compatibility
   onSuccess: () => void;
 }
 
@@ -57,7 +56,6 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
   } = useForm<SadhakFormData>({
     resolver: zodResolver(sadhakSchema),
     defaultValues: {
-      placeId,
       eventId,
       dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
       isFirstEntry: false,
@@ -105,6 +103,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
     try {
       const cleanData = {
         ...data,
+        placeId: null, // Send null since we're using placeName
         serialNumber: nextSerialNumber, // Auto-assign serial number
         age: data.age || null,
         phone: data.phone || null,
@@ -141,7 +140,6 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       setNextSerialNumber(nextSerialNumber + 1);
       
       reset({
-        placeId,
         eventId,
         placeName: data.placeName, // Keep the same place selected
         dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
