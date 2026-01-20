@@ -61,10 +61,10 @@ export default function EventRegistrationPage() {
   }, [selectedEventType]);
 
   useEffect(() => {
-    if (selectedPlace && selectedEvent) {
+    if (selectedEvent) {
       fetchSadhaks();
     }
-  }, [selectedPlace, selectedEvent]);
+  }, [selectedEvent]);
 
   const fetchEvents = async (eventType: string) => {
     try {
@@ -88,10 +88,10 @@ export default function EventRegistrationPage() {
   };
 
   const fetchSadhaks = async () => {
-    if (!selectedPlace) return;
+    if (!selectedEvent) return;
     
     try {
-      const response = await fetch(`/api/sadhaks?placeId=${selectedPlace}&eventId=${selectedEvent}`);
+      const response = await fetch(`/api/sadhaks?eventId=${selectedEvent}`);
       const data = await response.json();
       setSadhaks(data);
     } catch (error) {
@@ -121,32 +121,20 @@ export default function EventRegistrationPage() {
 
   const handleEventSelect = (eventId: number) => {
     setSelectedEvent(eventId);
+    // Skip place selection for Sadhna/Khula - go directly to form
     setCurrentStep(3);
-    setSelectedPlace(null);
-    setShowForm(false);
-  };
-
-  const handlePlaceSelect = (placeId: number) => {
-    setSelectedPlace(placeId);
-    setCurrentStep(4);
     setShowForm(false);
   };
 
   const handleBack = () => {
-    if (currentStep === 4) {
-      setCurrentStep(3);
-      setSelectedPlace(null);
-      setShowForm(false);
-    } else if (currentStep === 3) {
+    if (currentStep === 3) {
       setCurrentStep(2);
       setSelectedEvent(null);
-      setSelectedPlace(null);
       setShowForm(false);
     } else if (currentStep === 2) {
       setCurrentStep(1);
       setSelectedEventType(null);
       setSelectedEvent(null);
-      setSelectedPlace(null);
       setShowForm(false);
     }
   };
@@ -177,7 +165,7 @@ export default function EventRegistrationPage() {
             साधना सत्संग पंजीकरण
           </h2>
           <p className="text-gray-600">
-            सत्संग का प्रकार चुनें → सत्संग चुनें → स्थान चुनें → साधक जोड़ें
+            सत्संग का प्रकार चुनें → सत्संग चुनें → साधक जोड़ें
           </p>
         </div>
 
@@ -213,19 +201,7 @@ export default function EventRegistrationPage() {
               <div className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full ${
                 currentStep >= 3 ? 'bg-orange-600 text-white' : 'bg-gray-300 text-gray-600'
               }`}>
-                {currentStep > 3 ? <Check className="w-5 h-5 md:w-6 md:h-6" /> : '3'}
-              </div>
-              <span className="ml-2 font-medium text-gray-700 text-sm md:text-base">स्थान</span>
-            </div>
-
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
-
-            {/* Step 4 */}
-            <div className="flex items-center">
-              <div className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full ${
-                currentStep >= 4 ? 'bg-orange-600 text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                4
+                3
               </div>
               <span className="ml-2 font-medium text-gray-700 text-sm md:text-base">साधक</span>
             </div>
@@ -345,52 +321,8 @@ export default function EventRegistrationPage() {
           </div>
         )}
 
-        {/* Step 3: Place Selection */}
-        {currentStep === 3 && selectedEventData && (
-          <div className="space-y-6">
-            {/* Selected Event Info */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">चयनित सत्संग:</p>
-                  <h3 className="text-xl font-bold text-orange-600">{selectedEventData.eventName}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {formatDate(selectedEventData.startDate)} से {formatDate(selectedEventData.endDate)} • {selectedEventData.location}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Place Selection */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                अपना स्थान चुनें
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {places.map((place) => (
-                  <button
-                    key={place.id}
-                    onClick={() => handlePlaceSelect(place.id)}
-                    className="group p-6 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-xl transition-all bg-white"
-                  >
-                    <p className="font-bold text-lg text-gray-900 group-hover:text-orange-600 transition-colors">
-                      {place.name}
-                    </p>
-                    {place.contactPerson && (
-                      <p className="text-xs text-gray-600 mt-2">{place.contactPerson}</p>
-                    )}
-                    {place.phone && (
-                      <p className="text-xs text-gray-500 mt-1">{place.phone}</p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Sadhak Entry */}
-        {currentStep === 4 && selectedPlace && selectedEvent && (
+        {/* Step 3: Sadhak Entry (No Place Selection) */}
+        {currentStep === 3 && selectedEvent && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form Section */}
             <div className="lg:col-span-2">
@@ -404,7 +336,7 @@ export default function EventRegistrationPage() {
                     <strong>सत्संग:</strong> {selectedEventData?.eventName}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <strong>स्थान:</strong> {selectedPlaceData?.name}
+                    <strong>स्थान:</strong> {selectedEventData?.location}
                   </p>
                 </div>
 
@@ -424,7 +356,7 @@ export default function EventRegistrationPage() {
                 {showForm && (
                   <SadhakForm
                     eventId={selectedEvent}
-                    placeId={selectedPlace}
+                    placeId={1} // Dummy placeId since we're not using it
                     onSuccess={() => {
                       fetchSadhaks();
                       setShowForm(false);
@@ -464,6 +396,9 @@ export default function EventRegistrationPage() {
                               {sadhak.serialNumber && `${sadhak.serialNumber}. `}
                               {sadhak.name}
                               {sadhak.relationship && ` (${sadhak.relationship})`}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              📍 {sadhak.placeName}
                             </p>
                             <div className="text-sm text-gray-600 mt-1 space-y-1">
                               {sadhak.age && <p>उम्र: {sadhak.age}</p>}
