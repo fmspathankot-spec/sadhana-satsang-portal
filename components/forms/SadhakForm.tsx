@@ -30,6 +30,20 @@ interface SadhakFormProps {
   onSuccess: () => void;
 }
 
+// Hindi place names
+const PLACES = [
+  'पठानकोट',
+  'हरयाल',
+  'करोली',
+  'इंदौरा',
+  'गंदराण',
+  'सरना',
+  'नरोट मेहरा',
+  'अमृतसर',
+  'जम्मू',
+  'जवाली',
+];
+
 export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [nextSerialNumber, setNextSerialNumber] = useState<number>(1);
@@ -51,16 +65,26 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
   });
 
   const isFirstEntry = watch('isFirstEntry');
+  const selectedPlaceName = watch('placeName');
 
-  // Fetch next serial number on mount
+  // Fetch next serial number based on placeName and eventId
   useEffect(() => {
     const fetchNextSerialNumber = async () => {
+      if (!selectedPlaceName) {
+        setNextSerialNumber(1);
+        return;
+      }
+
       try {
-        const response = await fetch(`/api/sadhaks?placeId=${placeId}&eventId=${eventId}`);
+        const response = await fetch(`/api/sadhaks?eventId=${eventId}`);
         const data = await response.json();
         
-        // Find the highest serial number and add 1
-        const maxSerial = data.reduce((max: number, sadhak: any) => {
+        // Filter by placeName and find the highest serial number
+        const placeSpecificSadhaks = data.filter(
+          (sadhak: any) => sadhak.placeName === selectedPlaceName
+        );
+        
+        const maxSerial = placeSpecificSadhaks.reduce((max: number, sadhak: any) => {
           return sadhak.serialNumber > max ? sadhak.serialNumber : max;
         }, 0);
         
@@ -72,7 +96,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
     };
 
     fetchNextSerialNumber();
-  }, [placeId, eventId]);
+  }, [selectedPlaceName, eventId]);
 
   const onSubmit = async (data: SadhakFormData) => {
     console.log('Form submitted with data:', data);
@@ -119,6 +143,7 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       reset({
         placeId,
         eventId,
+        placeName: data.placeName, // Keep the same place selected
         dikshitBy: 'डॉ. श्री विश्वामित्र जी महाराज',
         isFirstEntry: false,
       });
@@ -146,17 +171,22 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Place Name */}
+        {/* Place Name - Dropdown */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             स्थान <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
+          <select
             {...register('placeName')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="पठानकोट, जम्मू, अमृतसर..."
-          />
+          >
+            <option value="">स्थान चुनें</option>
+            {PLACES.map((place) => (
+              <option key={place} value={place}>
+                {place}
+              </option>
+            ))}
+          </select>
           {errors.placeName && (
             <p className="text-red-500 text-sm mt-1">{errors.placeName.message}</p>
           )}
