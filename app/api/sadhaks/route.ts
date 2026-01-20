@@ -28,6 +28,8 @@ export async function GET(request: Request) {
         relationship: sadhaks.relationship,
         placeId: sadhaks.placeId,
         eventId: sadhaks.eventId,
+        isApproved: sadhaks.isApproved,
+        approvedAt: sadhaks.approvedAt,
       })
       .from(sadhaks)
       .leftJoin(places, eq(sadhaks.placeId, places.id));
@@ -102,6 +104,8 @@ export async function POST(request: Request) {
         dikshitBy: body.dikshitBy || 'डॉ. श्री विश्वामित्र जी महाराज',
         isFirstEntry: body.isFirstEntry || false,
         relationship: body.relationship || null,
+        isApproved: false, // Default to not approved
+        approvedAt: null,
       })
       .returning();
 
