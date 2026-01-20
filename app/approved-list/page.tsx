@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Filter } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 interface Event {
   id: number;
@@ -30,6 +32,13 @@ export default function ApprovedListPage() {
 
   useEffect(() => {
     fetchEvents();
+    
+    // Check for eventId in URL params
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+    if (eventId) {
+      setSelectedEvent(Number(eventId));
+    }
   }, []);
 
   useEffect(() => {
@@ -86,16 +95,112 @@ export default function ApprovedListPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('hi-IN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    const day = date.getDate();
+    const month = date.toLocaleDateString('hi-IN', { month: 'long' });
+    return `${day} ${month}`;
   };
 
-  const handleExportPDF = () => {
-    // TODO: Implement PDF export
-    alert('PDF Export coming soon!');
+  const formatDateRange = () => {
+    if (!selectedEventData) return '';
+    const start = formatDate(selectedEventData.startDate);
+    const end = formatDate(selectedEventData.endDate);
+    return `${start} - ${end}`;
+  };
+
+  const generatePDF = () => {
+    if (!selectedEventData) return;
+
+    const doc = new jsPDF();
+    let yPosition = 20;
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    const title = `${selectedEventData.location} Sadhana Satsang ${formatDateRange()} ke liye Swikrit Namon ki Suchi`;
+    doc.text(title, 105, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Process each place
+    Object.entries(groupedSadhaks).forEach(([place, { male, female }]) => {
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Place heading
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${place} (${formatDateRange()})`, 105, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      // Ladies section
+      if (female.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Mahilayen (Ladies)', 14, yPosition);
+        yPosition += 5;
+
+        const femaleData = female.map((s, idx) => [
+          idx + 1,
+          s.name,
+          s.age || '-',
+          s.phone || '-'
+        ]);
+
+        (doc as any).autoTable({
+          startY: yPosition,
+          head: [['Kramank', 'Naam', 'Umra', 'Mobile Number']],
+          body: femaleData,
+          theme: 'grid',
+          headStyles: { fillColor: [255, 192, 203], textColor: [0, 0, 0], fontStyle: 'bold' },
+          styles: { font: 'helvetica', fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Gents section
+      if (male.length > 0) {
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Purush (Gents)', 14, yPosition);
+        yPosition += 5;
+
+        const maleData = male.map((s, idx) => [
+          idx + 1,
+          s.name,
+          s.age || '-',
+          s.phone || '-'
+        ]);
+
+        (doc as any).autoTable({
+          startY: yPosition,
+          head: [['Kramank', 'Naam', 'Umra', 'Mobile Number']],
+          body: maleData,
+          theme: 'grid',
+          headStyles: { fillColor: [173, 216, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
+          styles: { font: 'helvetica', fontSize: 10 },
+          margin: { left: 14, right: 14 },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 15;
+      }
+    });
+
+    // Save PDF
+    const filename = `Approved_List_${selectedEventData.eventName.replace(/\s+/g, '_')}.pdf`;
+    doc.save(filename);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -114,7 +219,6 @@ export default function ApprovedListPage() {
         {/* Event Selection */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-4">
-            <Filter className="w-6 h-6 text-green-600" />
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 सत्संग चुनें
@@ -132,14 +236,23 @@ export default function ApprovedListPage() {
                 ))}
               </select>
             </div>
-            {selectedEvent && (
-              <button
-                onClick={handleExportPDF}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
-              >
-                <Download className="w-5 h-5" />
-                PDF Export
-              </button>
+            {selectedEvent && sadhaks.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={generatePDF}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
+                >
+                  <Download className="w-5 h-5" />
+                  PDF Download
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                >
+                  <Printer className="w-5 h-5" />
+                  Print
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -154,7 +267,7 @@ export default function ApprovedListPage() {
 
         {/* Approved Lists by Place */}
         {!loading && selectedEvent && (
-          <div className="space-y-8">
+          <div className="space-y-8 print:space-y-12">
             {Object.keys(groupedSadhaks).length === 0 ? (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
                 <p className="text-gray-500 text-lg">
@@ -163,9 +276,9 @@ export default function ApprovedListPage() {
               </div>
             ) : (
               Object.entries(groupedSadhaks).map(([place, { male, female }]) => (
-                <div key={place} className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+                <div key={place} className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 print:break-inside-avoid">
                   <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center border-b-2 border-green-600 pb-4">
-                    {place} ({formatDate(selectedEventData?.startDate || '')} - {formatDate(selectedEventData?.endDate || '')})
+                    {place} ({formatDateRange()})
                   </h2>
 
                   {/* Ladies Section */}
@@ -267,6 +380,24 @@ export default function ApprovedListPage() {
           </div>
         )}
       </div>
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          body {
+            background: white !important;
+          }
+          .print\\:break-inside-avoid {
+            break-inside: avoid;
+          }
+          .print\\:space-y-12 > * + * {
+            margin-top: 3rem;
+          }
+          button {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
