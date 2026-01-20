@@ -47,12 +47,15 @@ export const sadhaks = pgTable(
       .notNull(),
     isFirstEntry: boolean('is_first_entry').default(false).notNull(),
     relationship: varchar('relationship', { length: 50 }),
+    isApproved: boolean('is_approved').default(false).notNull(), // NEW: Approval status
+    approvedAt: timestamp('approved_at'), // NEW: Approval timestamp
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
     placeIdIdx: index('sadhaks_place_id_idx').on(table.placeId),
     eventIdIdx: index('sadhaks_event_id_idx').on(table.eventId),
+    isApprovedIdx: index('sadhaks_is_approved_idx').on(table.isApproved), // NEW: Index for filtering
   })
 );
 
