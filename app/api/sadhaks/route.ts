@@ -62,14 +62,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('POST /api/sadhaks - Received data:', body);
 
-    // Validate required fields
-    if (!body.placeId) {
-      return NextResponse.json(
-        { error: 'placeId is required' },
-        { status: 400 }
-      );
-    }
-
+    // Validate required fields (placeId is now optional/nullable)
     if (!body.placeName || body.placeName.trim() === '') {
       return NextResponse.json(
         { error: 'placeName is required' },
@@ -95,7 +88,7 @@ export async function POST(request: Request) {
     const [sadhak] = await db
       .insert(sadhaks)
       .values({
-        placeId: body.placeId,
+        placeId: body.placeId || null, // Now nullable
         eventId: body.eventId || null,
         serialNumber: body.serialNumber || null,
         placeName: body.placeName,
