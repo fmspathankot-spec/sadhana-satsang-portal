@@ -107,21 +107,31 @@ export default function ApprovedListPage() {
     return `${start} - ${end}`;
   };
 
+  const formatDateRangeEnglish = () => {
+    if (!selectedEventData) return '';
+    const startDate = new Date(selectedEventData.startDate);
+    const endDate = new Date(selectedEventData.endDate);
+    const startDay = startDate.getDate();
+    const endDay = endDate.getDate();
+    const month = startDate.toLocaleDateString('en', { month: 'long' });
+    return `${startDay}-${endDay} ${month}`;
+  };
+
   const generatePDF = () => {
     if (!selectedEventData) return;
 
     const doc = new jsPDF();
     let yPosition = 20;
 
-    // Title - using simple ASCII transliteration
-    doc.setFontSize(14);
+    // Title
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     const title = `Swikrit Namon ki Suchi`;
-    const subtitle = `${selectedEventData.location} Sadhana Satsang (${formatDateRange()})`;
-    
     doc.text(title, 105, yPosition, { align: 'center' });
     yPosition += 8;
-    doc.setFontSize(12);
+    
+    doc.setFontSize(13);
+    const subtitle = `${selectedEventData.location} Sadhana Satsang (${formatDateRangeEnglish()})`;
     doc.text(subtitle, 105, yPosition, { align: 'center' });
     yPosition += 12;
 
@@ -134,9 +144,9 @@ export default function ApprovedListPage() {
       }
 
       // Place heading
-      doc.setFontSize(13);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${place} (${formatDateRange()})`, 105, yPosition, { align: 'center' });
+      doc.text(`${place} (${formatDateRangeEnglish()})`, 105, yPosition, { align: 'center' });
       yPosition += 8;
 
       // Ladies section
@@ -147,9 +157,9 @@ export default function ApprovedListPage() {
         yPosition += 2;
 
         const femaleData = female.map((s, idx) => [
-          idx + 1,
+          (idx + 1).toString(),
           s.name,
-          s.age || '-',
+          s.age?.toString() || '-',
           s.phone || '-'
         ]);
 
@@ -167,20 +177,21 @@ export default function ApprovedListPage() {
           },
           styles: { 
             font: 'helvetica', 
-            fontSize: 9,
-            cellPadding: 3,
-            halign: 'left'
+            fontSize: 10,
+            cellPadding: 4,
+            halign: 'left',
+            overflow: 'linebreak'
           },
           columnStyles: {
-            0: { cellWidth: 20 },
+            0: { cellWidth: 25, halign: 'center' },
             1: { cellWidth: 70 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 40 }
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 45 }
           },
           margin: { left: 14, right: 14 },
         });
 
-        yPosition = (doc as any).lastAutoTable.finalY + 8;
+        yPosition = (doc as any).lastAutoTable.finalY + 10;
       }
 
       // Gents section
@@ -196,9 +207,9 @@ export default function ApprovedListPage() {
         yPosition += 2;
 
         const maleData = male.map((s, idx) => [
-          idx + 1,
+          (idx + 1).toString(),
           s.name,
-          s.age || '-',
+          s.age?.toString() || '-',
           s.phone || '-'
         ]);
 
@@ -216,15 +227,16 @@ export default function ApprovedListPage() {
           },
           styles: { 
             font: 'helvetica', 
-            fontSize: 9,
-            cellPadding: 3,
-            halign: 'left'
+            fontSize: 10,
+            cellPadding: 4,
+            halign: 'left',
+            overflow: 'linebreak'
           },
           columnStyles: {
-            0: { cellWidth: 20 },
+            0: { cellWidth: 25, halign: 'center' },
             1: { cellWidth: 70 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 40 }
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 45 }
           },
           margin: { left: 14, right: 14 },
         });
