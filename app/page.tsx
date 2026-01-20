@@ -71,7 +71,7 @@ export default function HomePage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
           त्वरित कार्य
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <a
             href="/registration"
             className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all group"
@@ -103,16 +103,61 @@ export default function HomePage() {
           </a>
 
           <a
-            href="/reports"
+            href="/approval"
             className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all group"
+          >
+            <div className="text-4xl">✅</div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-green-600">
+                अनुमोदन प्रबंधन
+              </h3>
+              <p className="text-sm text-gray-600">
+                साधकों को स्वीकृत/अस्वीकृत करें
+              </p>
+            </div>
+          </a>
+
+          <a
+            href="/approved-list"
+            className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
+          >
+            <div className="text-4xl">📋</div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-teal-600">
+                स्वीकृत सूची
+              </h3>
+              <p className="text-sm text-gray-600">
+                स्वीकृत साधकों की PDF डाउनलोड करें
+              </p>
+            </div>
+          </a>
+
+          <a
+            href="/reports"
+            className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all group"
           >
             <div className="text-4xl">📊</div>
             <div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-green-600">
+              <h3 className="font-semibold text-gray-900 group-hover:text-purple-600">
                 रिपोर्ट डाउनलोड करें
               </h3>
               <p className="text-sm text-gray-600">
                 PDF और Excel में निर्यात करें
+              </p>
+            </div>
+          </a>
+
+          <a
+            href="/places"
+            className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+          >
+            <div className="text-4xl">📍</div>
+            <div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600">
+                स्थान प्रबंधन
+              </h3>
+              <p className="text-sm text-gray-600">
+                नए स्थान जोड़ें और प्रबंधित करें
               </p>
             </div>
           </a>
