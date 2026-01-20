@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, MapPin, Plus, ChevronRight, Check } from 'lucide-react';
 import SadhakForm from '@/components/forms/SadhakForm';
 import { Toaster } from 'sonner';
@@ -98,6 +98,12 @@ export default function EventRegistrationPage() {
       console.error('Error fetching sadhaks:', error);
     }
   };
+
+  // Memoize the onSuccess callback to avoid re-creating it on every render
+  const handleSadhakSuccess = useCallback(() => {
+    fetchSadhaks();
+    setShowForm(false);
+  }, [selectedEvent]);
 
   const selectedEventData = events.find(e => e.id === selectedEvent);
   const selectedPlaceData = places.find(p => p.id === selectedPlace);
@@ -357,10 +363,7 @@ export default function EventRegistrationPage() {
                   <SadhakForm
                     eventId={selectedEvent}
                     placeId={1} // Dummy placeId since we're not using it
-                    onSuccess={() => {
-                      fetchSadhaks();
-                      setShowForm(false);
-                    }}
+                    onSuccess={handleSadhakSuccess}
                   />
                 )}
 
