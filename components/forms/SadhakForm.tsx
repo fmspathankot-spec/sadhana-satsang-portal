@@ -133,8 +133,6 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
 
       const result = await response.json();
       console.log('Success:', result);
-
-      toast.success(`साधक सफलतापूर्वक जोड़ा गया! क्रमांक: ${nextSerialNumber} ✅`);
       
       // Increment serial number for next entry
       setNextSerialNumber(nextSerialNumber + 1);
@@ -146,13 +144,17 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
         isFirstEntry: false,
       });
       
-      // Wrap onSuccess in setTimeout to avoid setState during render
+      // Wrap ALL state updates and callbacks in setTimeout
       setTimeout(() => {
+        toast.success(`साधक सफलतापूर्वक जोड़ा गया! क्रमांक: ${nextSerialNumber} ✅`);
         onSuccess();
       }, 0);
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error(error instanceof Error ? error.message : 'साधक जोड़ने में त्रुटि हुई');
+      // Wrap error toast in setTimeout too
+      setTimeout(() => {
+        toast.error(error instanceof Error ? error.message : 'साधक जोड़ने में त्रुटि हुई');
+      }, 0);
     } finally {
       setIsLoading(false);
     }
@@ -250,25 +252,9 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             placeholder="9876543210"
           />
-        </div>
-
-        {/* Relationship */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            संबंध
-          </label>
-          <select
-            {...register('relationship')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          >
-            <option value="">चुनें</option>
-            <option value="पति">पति</option>
-            <option value="पत्नी">पत्नी</option>
-            <option value="पुत्र">पुत्र</option>
-            <option value="पुत्री">पुत्री</option>
-            <option value="माता">माता</option>
-            <option value="पिता">पिता</option>
-          </select>
+          {errors.phone && (
+            <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+          )}
         </div>
 
         {/* Age */}
@@ -280,96 +266,114 @@ export default function SadhakForm({ eventId, placeId, onSuccess }: SadhakFormPr
             type="number"
             {...register('age')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="48"
+            placeholder="25"
           />
+          {errors.age && (
+            <p className="text-red-500 text-sm mt-1">{errors.age.message}</p>
+          )}
         </div>
 
-        {/* Is First Entry */}
-        <div className="md:col-span-2">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              {...register('isFirstEntry')}
-              className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-            />
-            <span className="text-sm font-medium text-gray-700">
-              प्रथम प्रविष्ट (First Entry)
-            </span>
+        {/* Relationship */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            संबंध (Relationship)
           </label>
+          <input
+            type="text"
+            {...register('relationship')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="पत्नी, पुत्र, पुत्री, आदि"
+          />
+          {errors.relationship && (
+            <p className="text-red-500 text-sm mt-1">{errors.relationship.message}</p>
+          )}
         </div>
 
         {/* Last Haridwar Year */}
-        {!isFirstEntry && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              अंतिम हरिद्वार
-            </label>
-            <input
-              type="number"
-              {...register('lastHaridwarYear')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="2025"
-            />
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            पिछली बार हरिद्वार कब गए (वर्ष)
+          </label>
+          <input
+            type="number"
+            {...register('lastHaridwarYear')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="2023"
+          />
+          {errors.lastHaridwarYear && (
+            <p className="text-red-500 text-sm mt-1">{errors.lastHaridwarYear.message}</p>
+          )}
+        </div>
 
         {/* Other Location */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            किसी भी अन्य स्थान पर
+            अन्य स्थान (Other Location)
           </label>
           <input
             type="text"
             {...register('otherLocation')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="सुजानपुर, जम्मू, आदि"
+            placeholder="यदि कोई अन्य स्थान हो"
           />
+          {errors.otherLocation && (
+            <p className="text-red-500 text-sm mt-1">{errors.otherLocation.message}</p>
+          )}
         </div>
 
         {/* Dikshit Year */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            दीक्षित कब
+            दीक्षित वर्ष (Dikshit Year)
           </label>
           <input
             type="number"
             {...register('dikshitYear')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            placeholder="1995"
+            placeholder="2020"
           />
+          {errors.dikshitYear && (
+            <p className="text-red-500 text-sm mt-1">{errors.dikshitYear.message}</p>
+          )}
         </div>
 
         {/* Dikshit By */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            दीक्षित किससे
+            दीक्षित किसके द्वारा (Dikshit By)
           </label>
           <input
             type="text"
             {...register('dikshitBy')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+            readOnly
           />
+          {errors.dikshitBy && (
+            <p className="text-red-500 text-sm mt-1">{errors.dikshitBy.message}</p>
+          )}
         </div>
       </div>
 
+      {/* First Entry Checkbox */}
+      <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <input
+          type="checkbox"
+          {...register('isFirstEntry')}
+          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+        />
+        <label className="text-sm font-medium text-gray-700">
+          प्रथम प्रविष्ट (First Entry) - क्या यह पहली बार है?
+        </label>
+      </div>
+
       {/* Submit Button */}
-      <div className="flex justify-end gap-4 pt-4">
+      <div className="flex justify-end gap-4">
         <button
           type="submit"
           disabled={isLoading || isSubmitting}
-          className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold shadow-md"
+          className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold shadow-md"
         >
-          {isLoading || isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              जोड़ा जा रहा है...
-            </span>
-          ) : (
-            '✅ साधक जोड़ें'
-          )}
+          {isLoading ? 'जोड़ा जा रहा है...' : 'साधक जोड़ें'}
         </button>
       </div>
     </form>
