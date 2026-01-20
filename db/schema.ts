@@ -30,14 +30,13 @@ export const sadhaks = pgTable(
   {
     id: serial('id').primaryKey(),
     placeId: integer('place_id')
-      .notNull()
-      .references(() => places.id, { onDelete: 'cascade' }),
+      .references(() => places.id, { onDelete: 'cascade' }), // Made nullable
     eventId: integer('event_id')
       .references(() => satsangEvents.id, { onDelete: 'set null' }),
     serialNumber: integer('serial_number'),
-    placeName: varchar('place_name', { length: 100 }).notNull(), // New: Store place name directly
+    placeName: varchar('place_name', { length: 100 }).notNull(), // Primary place identifier
     name: varchar('name', { length: 100 }).notNull(),
-    gender: varchar('gender', { length: 10 }), // New: 'male' or 'female'
+    gender: varchar('gender', { length: 10 }), // 'male' or 'female'
     phone: varchar('phone', { length: 50 }),
     age: integer('age'),
     lastHaridwarYear: integer('last_haridwar_year'),
