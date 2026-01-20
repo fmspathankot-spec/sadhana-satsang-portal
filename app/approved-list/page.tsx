@@ -113,12 +113,17 @@ export default function ApprovedListPage() {
     const doc = new jsPDF();
     let yPosition = 20;
 
-    // Title
-    doc.setFontSize(16);
+    // Title - using simple ASCII transliteration
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    const title = `${selectedEventData.location} Sadhana Satsang ${formatDateRange()} ke liye Swikrit Namon ki Suchi`;
+    const title = `Swikrit Namon ki Suchi`;
+    const subtitle = `${selectedEventData.location} Sadhana Satsang (${formatDateRange()})`;
+    
     doc.text(title, 105, yPosition, { align: 'center' });
-    yPosition += 15;
+    yPosition += 8;
+    doc.setFontSize(12);
+    doc.text(subtitle, 105, yPosition, { align: 'center' });
+    yPosition += 12;
 
     // Process each place
     Object.entries(groupedSadhaks).forEach(([place, { male, female }]) => {
@@ -129,17 +134,17 @@ export default function ApprovedListPage() {
       }
 
       // Place heading
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.text(`${place} (${formatDateRange()})`, 105, yPosition, { align: 'center' });
-      yPosition += 10;
+      yPosition += 8;
 
       // Ladies section
       if (female.length > 0) {
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('Mahilayen (Ladies)', 14, yPosition);
-        yPosition += 5;
+        yPosition += 2;
 
         const femaleData = female.map((s, idx) => [
           idx + 1,
@@ -153,12 +158,29 @@ export default function ApprovedListPage() {
           head: [['Kramank', 'Naam', 'Umra', 'Mobile Number']],
           body: femaleData,
           theme: 'grid',
-          headStyles: { fillColor: [255, 192, 203], textColor: [0, 0, 0], fontStyle: 'bold' },
-          styles: { font: 'helvetica', fontSize: 10 },
+          headStyles: { 
+            fillColor: [255, 192, 203], 
+            textColor: [0, 0, 0], 
+            fontStyle: 'bold',
+            fontSize: 10,
+            halign: 'left'
+          },
+          styles: { 
+            font: 'helvetica', 
+            fontSize: 9,
+            cellPadding: 3,
+            halign: 'left'
+          },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 70 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 40 }
+          },
           margin: { left: 14, right: 14 },
         });
 
-        yPosition = (doc as any).lastAutoTable.finalY + 10;
+        yPosition = (doc as any).lastAutoTable.finalY + 8;
       }
 
       // Gents section
@@ -168,10 +190,10 @@ export default function ApprovedListPage() {
           yPosition = 20;
         }
 
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('Purush (Gents)', 14, yPosition);
-        yPosition += 5;
+        yPosition += 2;
 
         const maleData = male.map((s, idx) => [
           idx + 1,
@@ -185,17 +207,39 @@ export default function ApprovedListPage() {
           head: [['Kramank', 'Naam', 'Umra', 'Mobile Number']],
           body: maleData,
           theme: 'grid',
-          headStyles: { fillColor: [173, 216, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
-          styles: { font: 'helvetica', fontSize: 10 },
+          headStyles: { 
+            fillColor: [173, 216, 230], 
+            textColor: [0, 0, 0], 
+            fontStyle: 'bold',
+            fontSize: 10,
+            halign: 'left'
+          },
+          styles: { 
+            font: 'helvetica', 
+            fontSize: 9,
+            cellPadding: 3,
+            halign: 'left'
+          },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 70 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 40 }
+          },
           margin: { left: 14, right: 14 },
         });
 
-        yPosition = (doc as any).lastAutoTable.finalY + 15;
+        yPosition = (doc as any).lastAutoTable.finalY + 12;
       }
     });
 
-    // Save PDF
-    const filename = `Approved_List_${selectedEventData.eventName.replace(/\s+/g, '_')}.pdf`;
+    // Save PDF with proper filename
+    const locationName = selectedEventData.location.replace(/\s+/g, '_');
+    const startDate = new Date(selectedEventData.startDate);
+    const endDate = new Date(selectedEventData.endDate);
+    const dateStr = `${startDate.getDate()}-${endDate.getDate()}_${startDate.toLocaleDateString('en', { month: 'short' })}`;
+    const filename = `Swikrit_${locationName}_${dateStr}.pdf`;
+    
     doc.save(filename);
   };
 
@@ -275,107 +319,117 @@ export default function ApprovedListPage() {
                 </p>
               </div>
             ) : (
-              Object.entries(groupedSadhaks).map(([place, { male, female }]) => (
-                <div key={place} className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 print:break-inside-avoid">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center border-b-2 border-green-600 pb-4">
-                    {place} ({formatDateRange()})
+              <>
+                {/* Title for Print */}
+                <div className="hidden print:block text-center mb-8">
+                  <h1 className="text-3xl font-bold mb-2">स्वीकृत नामों की सूची</h1>
+                  <h2 className="text-xl font-semibold text-gray-700">
+                    {selectedEventData?.location} साधना सत्संग ({formatDateRange()})
                   </h2>
-
-                  {/* Ladies Section */}
-                  {female.length > 0 && (
-                    <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-pink-600 mb-4">
-                        महिलाएं (Ladies)
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border-2 border-gray-300">
-                          <thead>
-                            <tr className="bg-pink-100">
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                क्रमांक
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                नाम
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                उम्र
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                मोबाइल नंबर
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {female.map((sadhak, index) => (
-                              <tr key={sadhak.id} className="hover:bg-pink-50">
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {index + 1}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3 font-medium">
-                                  {sadhak.name}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {sadhak.age || '-'}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {sadhak.phone || '-'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Gents Section */}
-                  {male.length > 0 && (
-                    <div>
-                      <h3 className="text-2xl font-bold text-blue-600 mb-4">
-                        पुरुष (Gents)
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border-2 border-gray-300">
-                          <thead>
-                            <tr className="bg-blue-100">
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                क्रमांक
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                नाम
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                उम्र
-                              </th>
-                              <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
-                                मोबाइल नंबर
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {male.map((sadhak, index) => (
-                              <tr key={sadhak.id} className="hover:bg-blue-50">
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {index + 1}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3 font-medium">
-                                  {sadhak.name}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {sadhak.age || '-'}
-                                </td>
-                                <td className="border-2 border-gray-300 px-4 py-3">
-                                  {sadhak.phone || '-'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              ))
+
+                {Object.entries(groupedSadhaks).map(([place, { male, female }]) => (
+                  <div key={place} className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 print:break-inside-avoid">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center border-b-2 border-green-600 pb-4">
+                      {place} ({formatDateRange()})
+                    </h2>
+
+                    {/* Ladies Section */}
+                    {female.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-2xl font-bold text-pink-600 mb-4">
+                          महिलाएं (Ladies)
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse border-2 border-gray-300">
+                            <thead>
+                              <tr className="bg-pink-100">
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  क्रमांक
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  नाम
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  उम्र
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  मोबाइल नंबर
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {female.map((sadhak, index) => (
+                                <tr key={sadhak.id} className="hover:bg-pink-50">
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {index + 1}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3 font-medium">
+                                    {sadhak.name}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {sadhak.age || '-'}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {sadhak.phone || '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Gents Section */}
+                    {male.length > 0 && (
+                      <div>
+                        <h3 className="text-2xl font-bold text-blue-600 mb-4">
+                          पुरुष (Gents)
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse border-2 border-gray-300">
+                            <thead>
+                              <tr className="bg-blue-100">
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  क्रमांक
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  नाम
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  उम्र
+                                </th>
+                                <th className="border-2 border-gray-300 px-4 py-3 text-left font-bold">
+                                  मोबाइल नंबर
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {male.map((sadhak, index) => (
+                                <tr key={sadhak.id} className="hover:bg-blue-50">
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {index + 1}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3 font-medium">
+                                    {sadhak.name}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {sadhak.age || '-'}
+                                  </td>
+                                  <td className="border-2 border-gray-300 px-4 py-3">
+                                    {sadhak.phone || '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
             )}
           </div>
         )}
@@ -392,6 +446,9 @@ export default function ApprovedListPage() {
           }
           .print\\:space-y-12 > * + * {
             margin-top: 3rem;
+          }
+          .print\\:block {
+            display: block !important;
           }
           button {
             display: none !important;
