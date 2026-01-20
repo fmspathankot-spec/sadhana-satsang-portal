@@ -70,10 +70,10 @@ export default function ApprovalPage() {
 
   const handleApprove = async (sadhakId: number, isApproved: boolean) => {
     try {
-      const response = await fetch(`/api/sadhaks/${sadhakId}/approve`, {
+      const response = await fetch('/api/sadhaks-approve', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isApproved }),
+        body: JSON.stringify({ id: sadhakId, isApproved }),
       });
 
       if (!response.ok) throw new Error('Failed to update approval');
