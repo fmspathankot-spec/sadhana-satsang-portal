@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
   Users, 
@@ -10,14 +10,18 @@ import {
   FileText, 
   UserPlus,
   Menu,
-  X
+  X,
+  LogOut,
+  CheckSquare
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const navigation = [
   { name: 'होम', href: '/', icon: Home },
   { name: 'साधक पंजीकरण', href: '/registration', icon: UserPlus },
   { name: 'साधकों की सूची', href: '/sadhaks', icon: Users },
+  { name: 'स्वीकृत सूची', href: '/approved-list', icon: CheckSquare },
   { name: 'सत्संग प्रबंधन', href: '/events', icon: Calendar },
   { name: 'स्थान प्रबंधन', href: '/places', icon: MapPin },
   { name: 'रिपोर्ट', href: '/reports', icon: FileText },
@@ -25,7 +29,30 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        toast.success('लॉगआउट सफल!');
+        router.push('/login');
+      } else {
+        toast.error('लॉगआउट में त्रुटि');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('लॉगआउट में त्रुटि');
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -44,6 +71,7 @@ export default function Sidebar() {
           transition-transform duration-300 ease-in-out z-40
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:w-64 w-64
+          flex flex-col
         `}
       >
         {/* Header */}
@@ -57,7 +85,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -81,10 +109,20 @@ export default function Sidebar() {
               </Link>
             );
           })}
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-orange-50 hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>{loggingOut ? 'लॉगआउट हो रहा है...' : 'लॉगआउट'}</span>
+          </button>
         </nav>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-orange-500">
+        <div className="p-4 border-t border-orange-500">
           <div className="text-xs text-orange-100 space-y-1">
             <p className="font-semibold">संपर्क:</p>
             <p>📞 0186-2224242</p>
