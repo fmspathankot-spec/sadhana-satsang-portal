@@ -102,6 +102,10 @@ export async function GET(request: NextRequest) {
       color: #000;
     }
     
+    .page-break {
+      page-break-after: always;
+    }
+    
     .header {
       text-align: center;
       margin-bottom: 20px;
@@ -215,68 +219,91 @@ export async function GET(request: NextRequest) {
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>स्वीकृत नामों की सूची</h1>
-    <h2>${eventData.location} साधना सत्संग (${dateRange})</h2>
-  </div>
-
-  ${Object.entries(groupedByPlace).map(([place, { male, female }]) => `
-    <div class="place-section">
-      <div class="place-header">${place} (${dateRange})</div>
-      
-      ${female.length > 0 ? `
-        <div class="gender-section">
-          <div class="gender-title female">महिलाएं (Ladies)</div>
-          <table>
-            <thead class="female">
-              <tr>
-                <th class="col-sn">क्रमांक</th>
-                <th class="col-name">नाम</th>
-                <th class="col-age">उम्र</th>
-                <th class="col-phone">मोबाइल नंबर</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${female.map((s, idx) => `
-                <tr>
-                  <td class="col-sn">${idx + 1}</td>
-                  <td class="col-name">${s.name}</td>
-                  <td class="col-age">${s.age || '-'}</td>
-                  <td class="col-phone">${s.phone || '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+  ${Object.entries(groupedByPlace).map(([place, { male, female }], placeIndex) => {
+    const sections = [];
+    
+    // Ladies Section (if exists)
+    if (female.length > 0) {
+      sections.push(`
+        <div class="header">
+          <h1>स्वीकृत नामों की सूची</h1>
+          <h2>${eventData.location} साधना सत्संग (${dateRange})</h2>
         </div>
-      ` : ''}
-      
-      ${male.length > 0 ? `
-        <div class="gender-section">
-          <div class="gender-title male">पुरुष (Gents)</div>
-          <table>
-            <thead class="male">
-              <tr>
-                <th class="col-sn">क्रमांक</th>
-                <th class="col-name">नाम</th>
-                <th class="col-age">उम्र</th>
-                <th class="col-phone">मोबाइल नंबर</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${male.map((s, idx) => `
+        
+        <div class="place-section">
+          <div class="place-header">${place}</div>
+          
+          <div class="gender-section">
+            <div class="gender-title female">महिलाएं (Ladies)</div>
+            <table>
+              <thead class="female">
                 <tr>
-                  <td class="col-sn">${idx + 1}</td>
-                  <td class="col-name">${s.name}</td>
-                  <td class="col-age">${s.age || '-'}</td>
-                  <td class="col-phone">${s.phone || '-'}</td>
+                  <th class="col-sn">क्रमांक</th>
+                  <th class="col-name">नाम</th>
+                  <th class="col-age">उम्र</th>
+                  <th class="col-phone">मोबाइल नंबर</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${female.map((s, idx) => `
+                  <tr>
+                    <td class="col-sn">${idx + 1}</td>
+                    <td class="col-name">${s.name}</td>
+                    <td class="col-age">${s.age || '-'}</td>
+                    <td class="col-phone">${s.phone || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ` : ''}
-    </div>
-  `).join('')}
+      `);
+    }
+    
+    // Gents Section (if exists)
+    if (male.length > 0) {
+      sections.push(`
+        ${female.length > 0 ? '<div class="page-break"></div>' : ''}
+        
+        <div class="header">
+          <h1>स्वीकृत नामों की सूची</h1>
+          <h2>${eventData.location} साधना सत्संग (${dateRange})</h2>
+        </div>
+        
+        <div class="place-section">
+          <div class="place-header">${place}</div>
+          
+          <div class="gender-section">
+            <div class="gender-title male">पुरुष (Gents)</div>
+            <table>
+              <thead class="male">
+                <tr>
+                  <th class="col-sn">क्रमांक</th>
+                  <th class="col-name">नाम</th>
+                  <th class="col-age">उम्र</th>
+                  <th class="col-phone">मोबाइल नंबर</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${male.map((s, idx) => `
+                  <tr>
+                    <td class="col-sn">${idx + 1}</td>
+                    <td class="col-name">${s.name}</td>
+                    <td class="col-age">${s.age || '-'}</td>
+                    <td class="col-phone">${s.phone || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `);
+    }
+    
+    // Add page break between places (except last)
+    const isLastPlace = placeIndex === Object.keys(groupedByPlace).length - 1;
+    return sections.join('') + (!isLastPlace && male.length > 0 ? '<div class="page-break"></div>' : '');
+  }).join('')}
 </body>
 </html>
     `;
