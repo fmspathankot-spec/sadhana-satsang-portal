@@ -112,9 +112,9 @@ export default function ApprovedListPage() {
       return;
     }
 
+    const toastId = toast.loading('PDF डाउनलोड हो रही है...');
+
     try {
-      toast.loading('PDF डाउनलोड हो रही है...');
-      
       // Download from API
       const response = await fetch(`/api/export/approved-pdf?eventId=${selectedEvent}`);
       
@@ -144,12 +144,10 @@ export default function ApprovedListPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      toast.dismiss();
-      toast.success('PDF सफलतापूर्वक डाउनलोड हो गई!');
+      toast.success('PDF सफलतापूर्वक डाउनलोड हो गई!', { id: toastId });
     } catch (error) {
       console.error('PDF download error:', error);
-      toast.dismiss();
-      toast.error(error instanceof Error ? error.message : 'PDF डाउनलोड में त्रुटि');
+      toast.error(error instanceof Error ? error.message : 'PDF डाउनलोड में त्रुटि', { id: toastId });
     }
   };
 
