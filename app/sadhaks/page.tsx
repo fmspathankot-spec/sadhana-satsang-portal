@@ -151,9 +151,9 @@ export default function SadhaksListPage() {
     const selectedEventData = events.find(e => e.id === selectedEvent);
     if (!selectedEventData) return;
 
+    const loadingToast = toast.loading('PDF तैयार हो रही है...');
+
     try {
-      toast.loading('PDF तैयार हो रही है...');
-      
       // Fetch HTML from API
       const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
       if (!response.ok) throw new Error('Export failed');
@@ -176,6 +176,7 @@ export default function SadhaksListPage() {
 
       const iframeDoc = iframe.contentWindow?.document;
       if (!iframeDoc) {
+        toast.dismiss(loadingToast);
         toast.error('PDF तैयार करने में त्रुटि');
         return;
       }
@@ -185,31 +186,34 @@ export default function SadhaksListPage() {
       iframeDoc.write(htmlContent.replace('<title>साधकों की सूची</title>', `<title>${filename}</title>`));
       iframeDoc.close();
 
-      // Wait for content to load
-      iframe.onload = () => {
-        setTimeout(() => {
-          try {
-            // Trigger print dialog
-            iframe.contentWindow?.print();
-            
-            // Remove iframe after a delay
-            setTimeout(() => {
+      // Wait a bit for content to render, then trigger print
+      setTimeout(() => {
+        try {
+          toast.dismiss(loadingToast);
+          
+          // Trigger print dialog
+          iframe.contentWindow?.print();
+          
+          toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
+          
+          // Remove iframe after a delay
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
               document.body.removeChild(iframe);
-            }, 1000);
-            
-            toast.dismiss();
-            toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
-          } catch (error) {
-            console.error('Print error:', error);
-            toast.dismiss();
-            toast.error('प्रिंट करने में त्रुटि');
+            }
+          }, 2000);
+        } catch (error) {
+          console.error('Print error:', error);
+          toast.dismiss(loadingToast);
+          toast.error('प्रिंट करने में त्रुटि');
+          if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
           }
-        }, 500);
-      };
+        }
+      }, 1000);
     } catch (error) {
       console.error('Export error:', error);
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       toast.error('एक्सपोर्ट में त्रुटि हुई');
     }
   };
