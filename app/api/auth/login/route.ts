@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-// Default credentials
-const DEFAULT_USERNAME = 'srspkt';
-const DEFAULT_PASSWORD = 'srs@#pkt1313';
+// Get credentials from environment variables
+const DEFAULT_USERNAME = process.env.AUTH_USERNAME || 'srspkt';
+const DEFAULT_PASSWORD = process.env.AUTH_PASSWORD || 'srs@#pkt1313';
 
 export async function POST(request: NextRequest) {
   try {
