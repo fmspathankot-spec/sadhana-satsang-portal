@@ -4,7 +4,9 @@
 
 ## ✨ Features
 
+- 🔐 **Authentication** - Secure login system with session management
 - 👥 **साधक प्रबंधन** - साधकों की पूरी जानकारी और रिकॉर्ड
+- ✅ **Approval System** - साधकों की स्वीकृति प्रणाली
 - 📍 **स्थान प्रबंधन** - विभिन्न स्थानों का प्रबंधन
 - 📅 **सत्संग कार्यक्रम** - आगामी सत्संग की योजना और पंजीकरण
 - 📊 **रिपोर्ट जनरेशन** - PDF और Excel में रिपोर्ट डाउनलोड
@@ -20,6 +22,7 @@
 - **Validation**: Zod
 - **Forms**: React Hook Form
 - **UI Components**: Lucide Icons, Sonner (Toast)
+- **PDF Generation**: Puppeteer (Server-side)
 - **Reports**: jsPDF, xlsx
 - **Containerization**: Docker, Docker Compose
 
@@ -40,6 +43,10 @@ cd sadhana-satsang-portal
 
 # Copy environment file
 cp .env.example .env
+
+# Edit .env and set your credentials
+# AUTH_USERNAME="your_username"
+# AUTH_PASSWORD="your_password"
 
 # Start with Docker Compose
 docker-compose up -d
@@ -63,7 +70,7 @@ npm install
 
 # Setup environment variables
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your database credentials and auth credentials
 
 # Run PostgreSQL (if not using Docker)
 # Make sure PostgreSQL is running on localhost:5432
@@ -81,16 +88,50 @@ npm run dev
 # http://localhost:3000
 ```
 
+## 🔐 Authentication
+
+The portal uses session-based authentication to protect all routes.
+
+### Default Credentials
+
+**⚠️ IMPORTANT: Change these credentials in production!**
+
+```
+Username: srspkt
+Password: srs@#pkt1313
+```
+
+### Changing Credentials
+
+Edit your `.env` file:
+
+```env
+AUTH_USERNAME="your_username"
+AUTH_PASSWORD="your_secure_password"
+```
+
+### Features
+
+- ✅ Session-based authentication (7-day expiry)
+- ✅ Protected routes via middleware
+- ✅ Auto-redirect to login for unauthenticated users
+- ✅ Logout functionality
+- ✅ Secure cookies (HttpOnly, Secure in production)
+
 ## 📁 Project Structure
 
 ```
 sadhana-satsang-portal/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # API Routes
+│   │   ├── auth/            # Authentication endpoints
 │   │   ├── places/          # Places endpoints
 │   │   ├── sadhaks/         # Sadhaks endpoints
 │   │   ├── events/          # Events endpoints
+│   │   ├── export/          # PDF export endpoints
 │   │   └── reports/         # Reports endpoints
+│   ├── login/               # Login page
+│   ├── approved-list/       # Approved sadhaks list
 │   ├── places/              # Places pages
 │   ├── sadhaks/             # Sadhaks pages
 │   ├── events/              # Events pages
@@ -98,7 +139,7 @@ sadhana-satsang-portal/
 │   ├── layout.tsx           # Root layout
 │   └── page.tsx             # Dashboard
 ├── components/              # React components
-│   ├── layout/             # Layout components
+│   ├── layout/             # Layout components (Sidebar, etc.)
 │   ├── forms/              # Form components
 │   ├── tables/             # Table components
 │   └── dashboard/          # Dashboard components
@@ -111,6 +152,7 @@ sadhana-satsang-portal/
 │   └── utils.ts            # Helper functions
 ├── public/                  # Static files
 ├── docs/                    # Documentation
+├── middleware.ts           # Auth middleware
 ├── .env.example            # Environment template
 ├── docker-compose.yml      # Docker Compose config
 ├── Dockerfile              # Docker image config
@@ -124,7 +166,7 @@ sadhana-satsang-portal/
 ### Tables
 
 1. **places** - स्थानों की जानकारी
-2. **sadhaks** - साधकों की जानकारी
+2. **sadhaks** - साधकों की जानकारी (with approval status)
 3. **satsang_events** - सत्संग कार्यक्रम
 4. **registrations** - साधकों का पंजीकरण
 
@@ -143,6 +185,14 @@ DATABASE_URL="postgresql://user:password@localhost:5432/satsang_db"
 # App
 NODE_ENV="development"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Authentication
+AUTH_USERNAME="srspkt"
+AUTH_PASSWORD="srs@#pkt1313"
+
+# PgAdmin (Optional)
+PGADMIN_DEFAULT_EMAIL="admin@satsang.com"
+PGADMIN_DEFAULT_PASSWORD="admin123"
 ```
 
 ## 📝 Available Scripts
@@ -174,6 +224,11 @@ docker-compose logs -f   # View logs
 
 ## 📊 API Endpoints
 
+### Authentication
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/check` - Check auth status
+
 ### Sadhaks
 - `GET /api/sadhaks` - Get all sadhaks
 - `POST /api/sadhaks` - Create new sadhak
@@ -195,23 +250,40 @@ docker-compose logs -f   # View logs
 - `PATCH /api/events/:id` - Update event
 - `DELETE /api/events/:id` - Delete event
 
+### Export
+- `GET /api/export/approved-pdf` - Generate approved list PDF
+
 ### Reports
 - `GET /api/reports` - Generate report data
 
 ## 🎨 UI Components
 
+- **Login Page** - Secure authentication
 - **Dashboard** - Overview with stats
-- **Sadhaks List** - Searchable table with filters
+- **Sadhaks List** - Searchable table with filters and approval
+- **Approved List** - Gender-separated approved sadhaks
 - **Sadhak Form** - Add/Edit sadhak
 - **Places Grid** - Card-based place view
 - **Reports** - PDF/Excel generation
 
 ## 🔐 Security
 
+- Session-based authentication
+- Protected routes via middleware
 - Input validation with Zod
 - SQL injection prevention with Drizzle ORM
 - Environment variables for sensitive data
+- Secure cookies (HttpOnly, Secure)
 - CORS configuration
+
+## 📄 PDF Generation
+
+The portal uses **Puppeteer** for server-side PDF generation with:
+- ✅ Perfect Hindi font rendering (Noto Sans Devanagari)
+- ✅ Proper Unicode support
+- ✅ Gender-separated lists (Ladies & Gents)
+- ✅ Professional formatting
+- ✅ Separate pages for each gender section
 
 ## 🚀 Deployment
 
@@ -224,7 +296,11 @@ npm i -g vercel
 # Deploy
 vercel
 
-# Add environment variables in Vercel dashboard
+# Add environment variables in Vercel dashboard:
+# - DATABASE_URL
+# - AUTH_USERNAME
+# - AUTH_PASSWORD
+# - NODE_ENV=production
 ```
 
 ### Docker Production
@@ -249,21 +325,15 @@ docker run -p 3000:3000 --env-file .env sadhana-satsang-portal
 
 Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
 
-## 📄 License
+## 📞 Contact
 
-This project is licensed under the MIT License - see [LICENSE](./LICENSE) file.
+**श्री राम शरणम् पठानकोट**
+- 📞 Phone: 0186-2224242
+- 📱 Mobile: 9872035936
 
-## 👨‍💻 Developer
+## 📜 License
 
-**Dr. Rajan Maini**
-- Email: shreeramsharnampathankot@gmail.com
-- Phone: 0186-2224242, 9872035936
-- Location: Kali Mata Mandir Road, Pathankot
-
-## 🙏 Acknowledgments
-
-- श्री राम शरणम् पठानकोट परिवार
-- डॉ. श्री विश्वामित्र जी महाराज
+This project is licensed under the MIT License.
 
 ---
 
