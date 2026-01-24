@@ -20,6 +20,7 @@ interface Sadhak {
   relationship: string | null;
   placeId: number;
   eventId: number | null;
+  phone?: string | null;
 }
 
 interface Place {
@@ -70,22 +71,25 @@ export default function SadhaksListPage() {
       const response = await fetch('/api/events');
       const data = await response.json();
       
-      // Sort events: Sadhna first (by date), then Khule Satsang (by date)
+      // Sort events: Sadhna first (by date DESC), then Khule Satsang (by date DESC)
       const sortedEvents = data.sort((a: SatsangEvent, b: SatsangEvent) => {
         // First sort by event type (sadhna before khule_satsang)
         if (a.eventType === 'sadhna' && b.eventType !== 'sadhna') return -1;
         if (a.eventType !== 'sadhna' && b.eventType === 'sadhna') return 1;
         
-        // Within same type, sort by start date (newest first)
-        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+        // Within same type, sort by start date (newest/latest first)
+        const dateA = new Date(a.startDate).getTime();
+        const dateB = new Date(b.startDate).getTime();
+        return dateB - dateA; // Descending order (latest first)
       });
       
       setEvents(sortedEvents);
       
-      // Auto-select the current/latest event (first in sorted list)
+      // Auto-select the most recent event (first in sorted list - latest date)
       if (sortedEvents.length > 0 && !selectedEvent) {
-        const currentEvent = sortedEvents[0];
-        setSelectedEvent(currentEvent.id);
+        const mostRecentEvent = sortedEvents[0];
+        setSelectedEvent(mostRecentEvent.id);
+        console.log('Auto-selected most recent event:', mostRecentEvent.eventName, mostRecentEvent.startDate);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -270,11 +274,20 @@ export default function SadhaksListPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
               <option value="">सभी सत्संग</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.eventName} - {event.location} ({new Date(event.startDate).toLocaleDateString('hi-IN')})
-                </option>
-              ))}
+              {events.map((event) => {
+                const startDate = new Date(event.startDate);
+                const formattedDate = startDate.toLocaleDateString('hi-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                });
+                
+                return (
+                  <option key={event.id} value={event.id}>
+                    {event.eventType === 'sadhna' ? '🧘 साधना' : '🙏 खुला'} - {event.location} - {formattedDate}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
