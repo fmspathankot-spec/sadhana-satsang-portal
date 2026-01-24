@@ -119,7 +119,7 @@ export default function SadhaksListPage() {
     }
 
     try {
-      const response = await fetch(`/api/sadhaks/${id}`, {
+      const response = await fetch(`/api/sadhaks/id?id=${id}`, {
         method: 'DELETE',
       });
 
@@ -128,8 +128,8 @@ export default function SadhaksListPage() {
       toast.success('साधक सफलतापूर्वक हटाया गया');
       fetchSadhaks();
     } catch (error) {
-      console.error('Error deleting sadhak:', error);
-      toast.error('साधक हटाने में त्रुटि');
+      console.error('Delete error:', error);
+      toast.error('हटाने में त्रुटि हुई');
     }
   };
 
@@ -142,72 +142,111 @@ export default function SadhaksListPage() {
     fetchSadhaks();
   };
 
-  const handleExportCSV = () => {
-    if (filteredSadhaks.length === 0) {
-      toast.error('निर्यात करने के लिए कोई डेटा नहीं');
+  const handleExportPDF = async () => {
+    if (!selectedEvent) {
+      toast.error('कृपया पहले सत्संग चुनें');
       return;
     }
 
-    const headers = [
-      'क्रमांक',
-      'नाम',
-      'स्थान',
-      'लिंग',
-      'उम्र',
-      'फोन',
-      'अंतिम हरिद्वार वर्ष',
-      'अन्य स्थान',
-      'दीक्षित वर्ष',
-      'दीक्षित द्वारा',
-      'पहली प्रविष्टि',
-      'संबंध'
-    ];
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    if (!selectedEventData) return;
 
-    const rows = filteredSadhaks.map(sadhak => [
-      sadhak.serialNumber || '',
-      sadhak.name,
-      sadhak.placeName,
-      sadhak.gender === 'male' ? 'पुरुष' : sadhak.gender === 'female' ? 'महिला' : '',
-      sadhak.age || '',
-      sadhak.phone || '',
-      sadhak.lastHaridwarYear || '',
-      sadhak.otherLocation || '',
-      sadhak.dikshitYear || '',
-      sadhak.dikshitBy,
-      sadhak.isFirstEntry ? 'हाँ' : 'नहीं',
-      sadhak.relationship || ''
-    ]);
+    try {
+      toast.loading('PDF तैयार हो रही है...');
+      
+      // Fetch HTML from API
+      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
+      const htmlContent = await response.text();
+      
+      // Generate filename: location-date.pdf
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      const filename = `${selectedEventData.location}-${dateStr}.pdf`;
+      
+      // Create iframe for printing
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        toast.error('PDF तैयार करने में त्रुटि');
+        return;
+      }
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    const eventName = selectedEventData?.eventName || 'सभी_सत्संग';
-    const fileName = `साधक_सूची_${eventName}_${new Date().toLocaleDateString('hi-IN')}.csv`;
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Write HTML content with title for filename
+      iframeDoc.open();
+      iframeDoc.write(htmlContent.replace('<title>साधकों की सूची</title>', `<title>${filename}</title>`));
+      iframeDoc.close();
 
-    toast.success('CSV सफलतापूर्वक निर्यात किया गया');
+      // Wait for content to load
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            // Trigger print dialog
+            iframe.contentWindow?.print();
+            
+            // Remove iframe after a delay
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+            
+            toast.dismiss();
+            toast.success('प्रिंट डायलॉग खुल गया है। "Save as PDF" चुनें।');
+          } catch (error) {
+            console.error('Print error:', error);
+            toast.dismiss();
+            toast.error('प्रिंट करने में त्रुटि');
+            document.body.removeChild(iframe);
+          }
+        }, 500);
+      };
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.dismiss();
+      toast.error('एक्सपोर्ट में त्रुटि हुई');
+    }
   };
 
-  const handleExportPDF = () => {
-    if (filteredSadhaks.length === 0) {
-      toast.error('निर्यात करने के लिए कोई डेटा नहीं');
+  const handleExportCSV = async () => {
+    if (!selectedEvent) {
+      toast.error('कृपया पहले सत्संग चुनें');
       return;
     }
 
-    // Use browser's print functionality for PDF
-    window.print();
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    if (!selectedEventData) return;
+
+    try {
+      const response = await fetch(`/api/export/csv?eventId=${selectedEvent}`);
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Generate filename: location-date.csv
+      const startDate = new Date(selectedEventData.startDate);
+      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+      a.download = `${selectedEventData.location}-${dateStr}.csv`;
+      
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('CSV फ़ाइल डाउनलोड हो रही है');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('एक्सपोर्ट में त्रुटि हुई');
+    }
   };
 
   // Filter sadhaks based on search term
@@ -498,27 +537,6 @@ export default function SadhaksListPage() {
           onSuccess={handleEditSuccess}
         />
       )}
-
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-content, .print-content * {
-            visibility: visible;
-          }
-          .print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          button, .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
