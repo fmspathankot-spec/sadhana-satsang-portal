@@ -69,7 +69,24 @@ export default function SadhaksListPage() {
     try {
       const response = await fetch('/api/events');
       const data = await response.json();
-      setEvents(data);
+      
+      // Sort events: Sadhna first (by date), then Khule Satsang (by date)
+      const sortedEvents = data.sort((a: SatsangEvent, b: SatsangEvent) => {
+        // First sort by event type (sadhna before khule_satsang)
+        if (a.eventType === 'sadhna' && b.eventType !== 'sadhna') return -1;
+        if (a.eventType !== 'sadhna' && b.eventType === 'sadhna') return 1;
+        
+        // Within same type, sort by start date (newest first)
+        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+      });
+      
+      setEvents(sortedEvents);
+      
+      // Auto-select the current/latest event (first in sorted list)
+      if (sortedEvents.length > 0 && !selectedEvent) {
+        const currentEvent = sortedEvents[0];
+        setSelectedEvent(currentEvent.id);
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
     }
@@ -98,7 +115,7 @@ export default function SadhaksListPage() {
     }
 
     try {
-      const response = await fetch(`/api/sadhaks/id?id=${id}`, {
+      const response = await fetch(`/api/sadhaks/${id}`, {
         method: 'DELETE',
       });
 
@@ -107,96 +124,94 @@ export default function SadhaksListPage() {
       toast.success('साधक सफलतापूर्वक हटाया गया');
       fetchSadhaks();
     } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('हटाने में त्रुटि हुई');
+      console.error('Error deleting sadhak:', error);
+      toast.error('साधक हटाने में त्रुटि');
     }
   };
 
-  const handleExportPDF = async () => {
-    if (!selectedEvent) {
-      toast.error('कृपया पहले सत्संग चुनें');
+  const handleEdit = (sadhak: Sadhak) => {
+    setEditingSadhak(sadhak);
+  };
+
+  const handleEditSuccess = () => {
+    setEditingSadhak(null);
+    fetchSadhaks();
+  };
+
+  const handleExportCSV = () => {
+    if (filteredSadhaks.length === 0) {
+      toast.error('निर्यात करने के लिए कोई डेटा नहीं');
       return;
     }
 
-    const selectedEventData = events.find(e => e.id === selectedEvent);
-    if (!selectedEventData) return;
+    const headers = [
+      'क्रमांक',
+      'नाम',
+      'स्थान',
+      'लिंग',
+      'उम्र',
+      'फोन',
+      'अंतिम हरिद्वार वर्ष',
+      'अन्य स्थान',
+      'दीक्षित वर्ष',
+      'दीक्षित द्वारा',
+      'पहली प्रविष्टि',
+      'संबंध'
+    ];
 
-    try {
-      toast.loading('PDF डाउनलोड हो रही है...');
-      
-      // Direct download from API
-      const response = await fetch(`/api/export/pdf?eventId=${selectedEvent}`);
-      if (!response.ok) throw new Error('Export failed');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      // Filename from Content-Disposition header or generate
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'sadhaks.pdf';
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
-        }
-      }
-      
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+    const rows = filteredSadhaks.map(sadhak => [
+      sadhak.serialNumber || '',
+      sadhak.name,
+      sadhak.placeName,
+      sadhak.gender === 'male' ? 'पुरुष' : sadhak.gender === 'female' ? 'महिला' : '',
+      sadhak.age || '',
+      sadhak.phone || '',
+      sadhak.lastHaridwarYear || '',
+      sadhak.otherLocation || '',
+      sadhak.dikshitYear || '',
+      sadhak.dikshitBy,
+      sadhak.isFirstEntry ? 'हाँ' : 'नहीं',
+      sadhak.relationship || ''
+    ]);
 
-      toast.dismiss();
-      toast.success('PDF सफलतापूर्वक डाउनलोड हो गई');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.dismiss();
-      toast.error('एक्सपोर्ट में त्रुटि हुई');
-    }
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const eventName = selectedEventData?.eventName || 'सभी_सत्संग';
+    const fileName = `साधक_सूची_${eventName}_${new Date().toLocaleDateString('hi-IN')}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success('CSV सफलतापूर्वक निर्यात किया गया');
   };
 
-  const handleExportCSV = async () => {
-    if (!selectedEvent) {
-      toast.error('कृपया पहले सत्संग चुनें');
+  const handleExportPDF = () => {
+    if (filteredSadhaks.length === 0) {
+      toast.error('निर्यात करने के लिए कोई डेटा नहीं');
       return;
     }
 
-    const selectedEventData = events.find(e => e.id === selectedEvent);
-    if (!selectedEventData) return;
-
-    try {
-      const response = await fetch(`/api/export/csv?eventId=${selectedEvent}`);
-      if (!response.ok) throw new Error('Export failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      // Generate filename: location-date.csv
-      const startDate = new Date(selectedEventData.startDate);
-      const dateStr = `${startDate.getDate()}-${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
-      a.download = `${selectedEventData.location}-${dateStr}.csv`;
-      
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success('CSV फ़ाइल डाउनलोड हो रही है');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('एक्सपोर्ट में त्रुटि हुई');
-    }
+    // Use browser's print functionality for PDF
+    window.print();
   };
 
+  // Filter sadhaks based on search term
   const filteredSadhaks = sadhaks.filter((sadhak) =>
     sadhak.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group sadhaks by place
   const groupedByPlace = filteredSadhaks.reduce((acc, sadhak) => {
     const placeName = sadhak.placeName || 'Unknown';
     if (!acc[placeName]) {
@@ -231,6 +246,8 @@ export default function SadhaksListPage() {
 
   return (
     <div className="p-8">
+      <Toaster position="top-center" richColors />
+      
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -255,7 +272,7 @@ export default function SadhaksListPage() {
               <option value="">सभी सत्संग</option>
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
-                  {event.eventName} - {event.location}
+                  {event.eventName} - {event.location} ({new Date(event.startDate).toLocaleDateString('hi-IN')})
                 </option>
               ))}
             </select>
@@ -300,178 +317,153 @@ export default function SadhaksListPage() {
           {/* Export Buttons */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              एक्सपोर्ट
+              निर्यात करें
             </label>
             <div className="flex gap-2">
               <button
-                onClick={handleExportPDF}
-                disabled={!selectedEvent}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                title="PDF डाउनलोड करें"
-              >
-                <FileText className="w-4 h-4" />
-                PDF
-              </button>
-              <button
                 onClick={handleExportCSV}
-                disabled={!selectedEvent}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
                 <FileText className="w-4 h-4" />
                 CSV
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                PDF
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Event Banner */}
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="text-sm text-gray-600 mb-1">कुल साधक</div>
+          <div className="text-3xl font-bold text-orange-600">{totalSadhaks}</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="text-sm text-gray-600 mb-1">कुल स्थान</div>
+          <div className="text-3xl font-bold text-blue-600">{totalPlaces}</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="text-sm text-gray-600 mb-1">पुरुष</div>
+          <div className="text-3xl font-bold text-green-600">{maleCount}</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="text-sm text-gray-600 mb-1">महिला</div>
+          <div className="text-3xl font-bold text-pink-600">{femaleCount}</div>
+        </div>
+      </div>
+
+      {/* Selected Event Info */}
       {selectedEventData && (
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold mb-2">{selectedEventData.eventName}</h2>
-              <p className="text-orange-100">
-                📍 {selectedEventData.location} | 📅{' '}
-                {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} -{' '}
-                {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
+              <h3 className="font-semibold text-orange-900">{selectedEventData.eventName}</h3>
+              <p className="text-sm text-orange-700">
+                {selectedEventData.location} • {new Date(selectedEventData.startDate).toLocaleDateString('hi-IN')} - {new Date(selectedEventData.endDate).toLocaleDateString('hi-IN')}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold">{totalSadhaks}</div>
-              <div className="text-orange-100">कुल साधक</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Statistics Cards */}
-      {selectedEvent && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-2xl font-bold text-orange-600">{totalSadhaks}</div>
-            <div className="text-sm text-gray-600">कुल साधक</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-2xl font-bold text-blue-600">{totalPlaces}</div>
-            <div className="text-sm text-gray-600">कुल स्थान</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-2xl font-bold text-green-600">{maleCount}</div>
-            <div className="text-sm text-gray-600">पुरुष</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-2xl font-bold text-pink-600">{femaleCount}</div>
-            <div className="text-sm text-gray-600">महिला</div>
+            <span className="px-3 py-1 bg-orange-200 text-orange-800 rounded-full text-sm font-medium">
+              {selectedEventData.eventType === 'sadhna' ? 'साधना सत्संग' : 'खुला सत्संग'}
+            </span>
           </div>
         </div>
       )}
 
       {/* Sadhaks List */}
-      {Object.keys(groupedByPlace).length === 0 ? (
+      {filteredSadhaks.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <div className="text-6xl mb-4">📋</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">कोई साधक नहीं मिला</h3>
-          <p className="text-gray-600">
-            {selectedEvent 
-              ? 'इस सत्संग के लिए अभी तक कोई साधक पंजीकृत नहीं हुआ है।'
-              : 'कृपया सत्संग चुनें।'}
-          </p>
+          <p className="text-gray-500 text-lg">कोई साधक नहीं मिला</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedByPlace).map(([placeName, sadhaksList]) => (
+          {Object.entries(groupedByPlace).map(([placeName, placeSadhaks]) => (
             <div key={placeName} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {/* Place Header */}
               <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
-                <h3 className="text-xl font-bold text-white flex items-center justify-between">
-                  <span>📍 {placeName}</span>
-                  <span className="text-sm font-normal bg-white/20 px-3 py-1 rounded-full">
-                    {sadhaksList.length} साधक
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">
+                    📍 {placeName}
+                  </h3>
+                  <span className="px-3 py-1 bg-white bg-opacity-20 text-white rounded-full text-sm font-medium">
+                    {placeSadhaks.length} साधक
                   </span>
-                </h3>
+                </div>
               </div>
 
               {/* Sadhaks Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         क्रमांक
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         नाम
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         लिंग
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         उम्र
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        अंतिम हरिद्वार
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        फोन
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        अन्य स्थान
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        दीक्षित वर्ष
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        दीक्षित
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         कार्रवाई
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {sadhaksList.map((sadhak) => (
-                      <tr key={sadhak.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {placeSadhaks.map((sadhak) => (
+                      <tr key={sadhak.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {sadhak.serialNumber || '-'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{sadhak.name}</div>
                           {sadhak.relationship && (
-                            <div className="text-xs text-gray-500">({sadhak.relationship})</div>
+                            <div className="text-xs text-gray-500">{sadhak.relationship}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {sadhak.gender === 'male' ? '👨 पुरुष' : sadhak.gender === 'female' ? '👩 महिला' : '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {sadhak.age || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {sadhak.isFirstEntry ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              प्रथम प्रविष्ट
-                            </span>
-                          ) : (
-                            sadhak.lastHaridwarYear || '-'
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {sadhak.phone || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {sadhak.otherLocation || '-'}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {sadhak.dikshitYear || '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {sadhak.dikshitYear && `${sadhak.dikshitYear} - `}
-                          {sadhak.dikshitBy}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-medium">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => setEditingSadhak(sadhak)}
-                              className="text-blue-600 hover:text-blue-900 transition-colors"
+                              onClick={() => handleEdit(sadhak)}
+                              className="text-blue-600 hover:text-blue-900"
                               title="संपादित करें"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => handleDelete(sadhak.id, sadhak.name)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
+                              className="text-red-600 hover:text-red-900"
                               title="हटाएं"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
                         </td>
@@ -490,14 +482,30 @@ export default function SadhaksListPage() {
         <EditSadhakModal
           sadhak={editingSadhak}
           onClose={() => setEditingSadhak(null)}
-          onSuccess={() => {
-            setEditingSadhak(null);
-            fetchSadhaks();
-          }}
+          onSuccess={handleEditSuccess}
         />
       )}
 
-      <Toaster position="top-right" richColors />
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-content, .print-content * {
+            visibility: visible;
+          }
+          .print-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          button, .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
