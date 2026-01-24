@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     let dbEventType = eventType;
     if (eventType === 'khula') {
       dbEventType = 'khule_satsang';
-    } else if (eventType === 'sadhna') {
+    } else if (eventType === 'sadhna' || eventType === 'sadhana') {
+      // Handle both spellings
       dbEventType = 'sadhna';
     }
 
