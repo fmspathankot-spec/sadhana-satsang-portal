@@ -73,9 +73,10 @@ export default function EventRegistrationPage() {
       const response = await fetch(`/api/events?eventType=${eventType}`);
       const data = await response.json();
       console.log('Fetched events:', data);
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching events:', error);
+      setEvents([]);
     }
   };
 
@@ -83,9 +84,11 @@ export default function EventRegistrationPage() {
     try {
       const response = await fetch('/api/places');
       const data = await response.json();
-      setPlaces(data);
+      console.log('Fetched places:', data);
+      setPlaces(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching places:', error);
+      setPlaces([]);
     }
   };
 
@@ -95,9 +98,10 @@ export default function EventRegistrationPage() {
     try {
       const response = await fetch(`/api/sadhaks?eventId=${selectedEvent}`);
       const data = await response.json();
-      setSadhaks(data);
+      setSadhaks(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching sadhaks:', error);
+      setSadhaks([]);
     }
   };
 
@@ -134,7 +138,7 @@ export default function EventRegistrationPage() {
   }, [selectedEvent]);
 
   const selectedEventData = events.find(e => e.id === selectedEvent);
-  const selectedPlaceData = places.find(p => p.id === selectedPlace);
+  const selectedPlaceData = Array.isArray(places) ? places.find(p => p.id === selectedPlace) : undefined;
 
   // Filter sadhaks based on approval status
   const filteredSadhaks = sadhaks.filter(sadhak => {
@@ -153,50 +157,21 @@ export default function EventRegistrationPage() {
     });
   };
 
-  const handleEventTypeSelect = (type: string) => {
-    setSelectedEventType(type);
-    setCurrentStep(2);
-    setSelectedEvent(null);
-    setSelectedPlace(null);
-    setShowForm(false);
-  };
-
-  const handleEventSelect = (eventId: number) => {
-    setSelectedEvent(eventId);
-    // Skip place selection for Sadhna/Khula - go directly to form
-    setCurrentStep(3);
-    setShowForm(false);
-  };
-
-  const handleBack = () => {
-    if (currentStep === 3) {
-      setCurrentStep(2);
-      setSelectedEvent(null);
-      setShowForm(false);
-    } else if (currentStep === 2) {
-      setCurrentStep(1);
-      setSelectedEventType(null);
-      setSelectedEvent(null);
-      setShowForm(false);
-    }
-  };
-
-  const getEventTypeLabel = (type: string) => {
-    return type === 'sadhna' ? 'साधना सत्संग' : 'खुले सत्संग';
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 py-8">
-      <Toaster position="top-right" richColors />
-      
+    <>
+      <Toaster position="top-center" richColors />
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -250,278 +225,328 @@ export default function EventRegistrationPage() {
           </div>
         </div>
 
-        {/* Back Button */}
-        {currentStep > 1 && (
-          <div className="mb-6">
-            <button
-              onClick={handleBack}
-              className="px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-2"
-            >
-              ← पीछे जाएं
-            </button>
-          </div>
-        )}
-
         {/* Step 1: Event Type Selection */}
         {currentStep === 1 && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">
               सत्संग का प्रकार चुनें
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-              {/* Sadhna Satsang */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
-                onClick={() => handleEventTypeSelect('sadhna')}
-                className="group p-8 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-2xl transition-all bg-gradient-to-br from-orange-50 to-white"
+                onClick={() => {
+                  setSelectedEventType('sadhana');
+                  setCurrentStep(2);
+                }}
+                className="p-6 border-2 border-orange-300 rounded-lg hover:border-orange-600 hover:bg-orange-50 transition-all text-left group"
               >
-                <div className="text-6xl mb-4">🕉️</div>
-                <h4 className="font-bold text-2xl text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">
+                <Calendar className="w-12 h-12 text-orange-600 mb-3" />
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">
                   साधना सत्संग
                 </h4>
-                <p className="text-gray-600 mb-4">
-                  नियमित साधना सत्संग कार्यक्रम
+                <p className="text-gray-600">
+                  नियमित साधना सत्संग के लिए पंजीकरण
                 </p>
-                <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
-                  चुनें →
-                </div>
               </button>
 
-              {/* Khula Satsang */}
               <button
-                onClick={() => handleEventTypeSelect('khula')}
-                className="group p-8 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-2xl transition-all bg-gradient-to-br from-blue-50 to-white"
+                onClick={() => {
+                  setSelectedEventType('special');
+                  setCurrentStep(2);
+                }}
+                className="p-6 border-2 border-orange-300 rounded-lg hover:border-orange-600 hover:bg-orange-50 transition-all text-left group"
               >
-                <div className="text-6xl mb-4">🙏</div>
-                <h4 className="font-bold text-2xl text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">
-                  खुले सत्संग
+                <MapPin className="w-12 h-12 text-orange-600 mb-3" />
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">
+                  विशेष सत्संग
                 </h4>
-                <p className="text-gray-600 mb-4">
-                  खुले सत्संग कार्यक्रम
+                <p className="text-gray-600">
+                  विशेष आयोजन के लिए पंजीकरण
                 </p>
-                <div className="text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
-                  चुनें →
-                </div>
               </button>
             </div>
           </div>
         )}
 
         {/* Step 2: Event Selection */}
-        {currentStep === 2 && selectedEventType && (
-          <div className="space-y-6">
-            {/* Selected Type Info */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">चयनित प्रकार:</p>
-                  <h3 className="text-xl font-bold text-orange-600">
-                    {selectedEventType === 'sadhna' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
-                  </h3>
-                </div>
-              </div>
+        {currentStep === 2 && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">
+                सत्संग चुनें
+              </h3>
+              <button
+                onClick={() => {
+                  setCurrentStep(1);
+                  setSelectedEventType(null);
+                  setSelectedEvent(null);
+                }}
+                className="text-orange-600 hover:text-orange-700 font-medium"
+              >
+                ← वापस जाएं
+              </button>
             </div>
 
-            {/* Event Selection */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                सत्संग कार्यक्रम चुनें
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  कोई सत्संग उपलब्ध नहीं है
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
                 {events.map((event) => (
                   <button
                     key={event.id}
-                    onClick={() => handleEventSelect(event.id)}
-                    className="group p-6 rounded-xl border-2 border-gray-200 hover:border-orange-600 hover:shadow-xl transition-all text-left bg-white"
+                    onClick={() => {
+                      setSelectedEvent(event.id);
+                      setCurrentStep(3);
+                    }}
+                    className="p-6 border-2 border-gray-200 rounded-lg hover:border-orange-600 hover:bg-orange-50 transition-all text-left"
                   >
-                    <h4 className="font-bold text-xl text-gray-900 mb-3 group-hover:text-orange-600 transition-colors">
-                      {event.eventName}
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-5 h-5 text-orange-600" />
-                        <span className="text-sm">
-                          {formatDate(event.startDate)} से {formatDate(event.endDate)}
-                        </span>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-xl font-semibold text-gray-900 mb-2">
+                          {event.eventName}
+                        </h4>
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {formatDate(event.startDate)} - {formatDate(event.endDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            <span>{event.location}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-5 h-5 text-orange-600" />
-                        <span className="text-sm">{event.location}</span>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        event.isActive
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {event.isActive ? 'सक्रिय' : 'निष्क्रिय'}
                       </div>
-                    </div>
-                    <div className="mt-4 text-orange-600 font-semibold group-hover:translate-x-2 transition-transform inline-block">
-                      चुनें →
                     </div>
                   </button>
                 ))}
               </div>
-              {events.length === 0 && (
-                <p className="text-center text-gray-500 py-8">
-                  इस प्रकार का कोई सत्संग उपलब्ध नहीं है
-                </p>
-              )}
-            </div>
+            )}
           </div>
         )}
 
-        {/* Step 3: Sadhak Entry (No Place Selection) */}
+        {/* Step 3: Sadhak Management */}
         {currentStep === 3 && selectedEvent && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Form Section */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-                {/* Selected Info */}
-                <div className="mb-6 p-4 bg-orange-50 rounded-lg space-y-1">
-                  <p className="text-sm text-gray-600">
-                    <strong>प्रकार:</strong> {selectedEventType === 'sadhna' ? '🕉️ साधना सत्संग' : '🙏 खुले सत्संग'}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>सत्संग:</strong> {selectedEventData?.eventName}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>स्थान:</strong> {selectedEventData?.location}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between mb-6">
+          <div className="space-y-6">
+            {/* Event Info Card */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
                   <h3 className="text-2xl font-bold text-gray-900">
-                    साधक जोड़ें
+                    {selectedEventData?.eventName}
                   </h3>
-                  <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors shadow-md"
-                  >
-                    <Plus className="w-5 h-5" />
-                    {showForm ? 'फॉर्म बंद करें' : 'नया साधक'}
-                  </button>
-                </div>
-
-                {showForm && (
-                  <SadhakForm
-                    eventId={selectedEvent}
-                    placeId={1} // Dummy placeId since we're not using it
-                    onSuccess={handleSadhakSuccess}
-                  />
-                )}
-
-                {!showForm && sadhaks.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <p className="text-lg mb-4">अभी तक कोई साधक नहीं जोड़ा गया</p>
-                    <p className="text-sm">ऊपर "नया साधक" बटन पर क्लिक करें</p>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>
+                        {selectedEventData && formatDate(selectedEventData.startDate)} - {selectedEventData && formatDate(selectedEventData.endDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span>{selectedEventData?.location}</span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sadhaks List */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">
-                    साधकों की सूची ({filteredSadhaks.length})
-                  </h3>
-                  <Filter className="w-5 h-5 text-gray-600" />
                 </div>
+                <button
+                  onClick={() => {
+                    setCurrentStep(2);
+                    setSelectedEvent(null);
+                    setSadhaks([]);
+                  }}
+                  className="text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  ← वापस जाएं
+                </button>
+              </div>
 
-                {/* Filter Buttons */}
-                <div className="flex gap-2 mb-4">
+              {/* Filter Buttons */}
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-5 h-5 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">फ़िल्टर:</span>
+                <div className="flex gap-2">
                   <button
                     onClick={() => setApprovalFilter('all')}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       approvalFilter === 'all'
                         ? 'bg-orange-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     सभी ({sadhaks.length})
                   </button>
                   <button
                     onClick={() => setApprovalFilter('approved')}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       approvalFilter === 'approved'
                         ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     स्वीकृत ({sadhaks.filter(s => s.isApproved).length})
                   </button>
                   <button
                     onClick={() => setApprovalFilter('pending')}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       approvalFilter === 'pending'
                         ? 'bg-yellow-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     लंबित ({sadhaks.filter(s => !s.isApproved).length})
                   </button>
                 </div>
+              </div>
 
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {filteredSadhaks.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8 text-sm">
-                      कोई साधक नहीं मिला
-                    </p>
-                  ) : (
-                    filteredSadhaks.map((sadhak) => (
-                      <div
-                        key={sadhak.id}
-                        className={`p-4 border-2 rounded-lg transition-colors ${
-                          sadhak.isApproved
-                            ? 'border-green-300 bg-green-50'
-                            : 'border-gray-200 bg-white hover:bg-orange-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900">
-                              {sadhak.serialNumber && `${sadhak.serialNumber}. `}
-                              {sadhak.name}
-                              {sadhak.relationship && ` (${sadhak.relationship})`}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              📍 {sadhak.placeName}
-                            </p>
-                            <div className="text-sm text-gray-600 mt-1 space-y-1">
-                              {sadhak.age && <p>उम्र: {sadhak.age}</p>}
-                              {sadhak.phone && <p>📞 {sadhak.phone}</p>}
-                              {sadhak.isFirstEntry && (
-                                <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                                  प्रथम प्रविष्ट
-                                </span>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors shadow-md"
+              >
+                <Plus className="w-5 h-5" />
+                नया साधक जोड़ें
+              </button>
+            </div>
+
+            {/* Sadhak Form */}
+            {showForm && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    साधक की जानकारी दर्ज करें
+                  </h3>
+                  <button
+                    onClick={() => setShowForm(false)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <SadhakForm
+                  eventId={selectedEvent}
+                  placeId={selectedPlace || 0}
+                  onSuccess={handleSadhakSuccess}
+                />
+              </div>
+            )}
+
+            {/* Sadhaks List */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                पंजीकृत साधक ({filteredSadhaks.length})
+              </h3>
+
+              {filteredSadhaks.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">
+                    {approvalFilter === 'all' 
+                      ? 'अभी तक कोई साधक पंजीकृत नहीं है'
+                      : approvalFilter === 'approved'
+                      ? 'कोई स्वीकृत साधक नहीं है'
+                      : 'कोई लंबित साधक नहीं है'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          क्रमांक
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          नाम
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          स्थान
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          फोन
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          उम्र
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          स्थिति
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          कार्रवाई
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSadhaks.map((sadhak, index) => (
+                        <tr key={sadhak.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {sadhak.serialNumber || index + 1}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {sadhak.name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {sadhak.placeName}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {sadhak.phone || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {sadhak.age || '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {sadhak.isApproved ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                <CheckCircle className="w-4 h-4" />
+                                स्वीकृत
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                <XCircle className="w-4 h-4" />
+                                लंबित
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              {!sadhak.isApproved && (
+                                <button
+                                  onClick={() => handleApprove(sadhak.id, true)}
+                                  className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
+                                >
+                                  स्वीकृत करें
+                                </button>
+                              )}
+                              {sadhak.isApproved && (
+                                <button
+                                  onClick={() => handleApprove(sadhak.id, false)}
+                                  className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-medium"
+                                >
+                                  अस्वीकृत करें
+                                </button>
                               )}
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Approval Buttons */}
-                        <div className="flex gap-2 mt-3">
-                          {!sadhak.isApproved ? (
-                            <button
-                              onClick={() => handleApprove(sadhak.id, true)}
-                              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              स्वीकृत करें
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleApprove(sadhak.id, false)}
-                              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              अस्वीकृत करें
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
       </div>
     </div>
+    </>
   );
 }
